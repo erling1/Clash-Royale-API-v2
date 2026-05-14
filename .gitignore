@@ -1,0 +1,43 @@
+# Rust
+/target
+Cargo.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ty_cache/
+
+# Environment / secrets
+.envrc
+.env
+.env.*
+!.env.example
+
+# DuckDB data
+data/*.duckdb
+data/*.duckdb.wal
+data/*.wal
+
+# Marimo
+__marimo__/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Claude
+.claude/
