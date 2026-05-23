@@ -1,0 +1,8 @@
+clash_royale:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: '../database/data/mydb.duckdb'
+      schema: main
+      threads: 4

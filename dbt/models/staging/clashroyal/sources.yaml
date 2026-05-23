@@ -1,0 +1,10 @@
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: battles
+      - name: players
+      - name: battle_participants
+      - name: battle_deck_cards
+      - name: battle_support_cards
+      - name: pol_rankings

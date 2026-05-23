@@ -3,8 +3,9 @@ CONTAINER  := clashroyale-db
 PORT       := 4213
 DATA_DIR   := $(CURDIR)/data
 CONTEXT    := database
+DUCKDB     := $(CURDIR)/database/data/mydb.duckdb
 
-.PHONY: build run stop logs clean prune help
+.PHONY: build run stop logs clean prune help duck
 
 help:
 	@echo "Targets:"
@@ -14,6 +15,10 @@ help:
 	@echo "  logs    Tail the container's logs"
 	@echo "  clean   Remove this project's container and image"
 	@echo "  prune   clean + 'docker system prune -f' (removes ALL unused Docker resources)"
+	@echo "  duck    Open the DuckDB CLI on $(DUCKDB)"
+
+duck:
+	duckdb $(DUCKDB)
 
 build:
 	docker build -t $(IMAGE) $(CONTEXT)
