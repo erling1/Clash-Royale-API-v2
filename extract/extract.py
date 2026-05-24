@@ -208,10 +208,7 @@ def normalize_battlelogs(logs: dict):
 
     for queried_tag, battles in logs.items():
         for b in battles:
-            battle_id = f"{queried_tag}|{b.get('battleTime')}"
-
             battles_rows.append({
-                "battle_id": battle_id,
                 "queried_player_tag": queried_tag,
                 "type": b.get("type"),
                 "battleTime": b.get("battleTime"),
@@ -227,13 +224,12 @@ def normalize_battlelogs(logs: dict):
 
             for side_name, side in (("team", b.get("team") or []), ("opponent", b.get("opponent") or [])):
                 for slot, p in enumerate(side):
-                    participant_id = f"{battle_id}|{side_name}|{slot}"
                     clan = p.get("clan") or {}
                     pt_hp = p.get("princessTowersHitPoints") or []
 
                     participants_rows.append({
-                        "participant_id": participant_id,
-                        "battle_id": battle_id,
+                        "queried_player_tag": queried_tag,
+                        "battleTime": b.get("battleTime"),
                         "side": side_name,
                         "slot": slot,
                         "player_tag": p.get("tag"),
@@ -253,8 +249,10 @@ def normalize_battlelogs(logs: dict):
 
                     for card_slot, c in enumerate(p.get("cards") or []):
                         deck_rows.append({
-                            "participant_id": participant_id,
-                            "battle_id": battle_id,
+                            "queried_player_tag": queried_tag,
+                            "battleTime": b.get("battleTime"),
+                            "side": side_name,
+                            "slot": slot,
                             "deck_slot": card_slot,
                             "card_id": c.get("id"),
                             "card_name": c.get("name"),
@@ -269,8 +267,10 @@ def normalize_battlelogs(logs: dict):
 
                     for sc_slot, sc in enumerate(p.get("supportCards") or []):
                         support_rows.append({
-                            "participant_id": participant_id,
-                            "battle_id": battle_id,
+                            "queried_player_tag": queried_tag,
+                            "battleTime": b.get("battleTime"),
+                            "side": side_name,
+                            "slot": slot,
                             "support_slot": sc_slot,
                             "card_id": sc.get("id"),
                             "card_name": sc.get("name"),

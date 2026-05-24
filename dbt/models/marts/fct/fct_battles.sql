@@ -1,19 +1,19 @@
--- one row per battle.
+-- one row per battle. grain: (queried_player_tag, battle_time).
 -- FKs: queried_player_tag -> dim_players, arena_id -> dim_arenas, game_mode_id -> dim_game_modes.
 -- derived: team_crowns, opponent_crowns, winner_side.
 with crowns as (
     select
-        battle_id,
+        queried_player_tag,
+        battle_time,
         max(case when participant_side = 'team' then crowns end) as team_crowns,
         max(case when participant_side = 'opponent' then crowns end) as opponent_crowns
     from {{ ref('base_battle_participants') }}
-    group by battle_id
+    group by queried_player_tag, battle_time
 )
 select
-    b.battle_id,
     b.queried_player_tag,
-    b.battle_type,
     b.battle_time,
+    b.battle_type,
     b.is_ladder_tournament,
     b.is_hosted_match,
     b.league_number,
@@ -29,4 +29,6 @@ select
     end as winner_side,
     b.extracted_date
 from {{ ref('base_battles') }} b
-left join crowns c on b.battle_id = c.battle_id
+left join crowns c
+    on b.queried_player_tag = c.queried_player_tag
+   and b.battle_time = c.battle_time

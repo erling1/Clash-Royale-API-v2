@@ -1,8 +1,13 @@
 -- one row per (participant, support_slot).
--- FKs: participant_id -> fct_battle_participants, battle_id -> fct_battles, card_id -> dim_support_cards.
+-- grain: (queried_player_tag, battle_time, participant_side, slot, support_slot).
+-- FKs: (queried_player_tag, battle_time, participant_side, slot) -> fct_battle_participants,
+--      (queried_player_tag, battle_time) -> fct_battles,
+--      card_id -> dim_support_cards.
 select
-    participant_id,
-    battle_id,
+    queried_player_tag,
+    battle_time,
+    participant_side,
+    slot,
     support_slot,
     card_id,
     card_level,

@@ -1,5 +1,4 @@
 select
-    battle_id,
     queried_player_tag,
     type as battle_type,
     try_strptime(battleTime, '%Y%m%dT%H%M%S.%gZ') as battle_time,

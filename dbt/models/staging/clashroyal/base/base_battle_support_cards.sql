@@ -1,6 +1,8 @@
 select
-    participant_id,
-    battle_id,
+    queried_player_tag,
+    try_strptime(battleTime, '%Y%m%dT%H%M%S.%gZ') as battle_time,
+    side as participant_side,
+    slot,
     support_slot,
     card_id,
     card_name,
