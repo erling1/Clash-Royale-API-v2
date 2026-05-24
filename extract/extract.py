@@ -13,7 +13,6 @@ Run manually:
 
 Environment:
     CR_API_TOKEN    required - Supercell developer token
-    POL_SEASON_ID   optional - "YYYY-MM" Path-of-Legend season, default = current month
     POL_LIMIT       optional - top N players, default = 100
 
 Cron example (every day at 03:00):
@@ -29,7 +28,7 @@ import sys
 import time
 import urllib.parse
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -42,7 +41,8 @@ from urllib3.util.retry import Retry
 # ---- config ----------------------------------------------------------------
 TOKEN = os.getenv("CR_API_TOKEN")
 BASE_URL = "https://api.clashroyale.com/v1"
-SEASON_ID = os.getenv("POL_SEASON_ID") or date.today().strftime("%Y-%m")
+# PoL rankings publish only for completed seasons → always last month.
+SEASON_ID = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 LIMIT = int(os.getenv("POL_LIMIT", "100"))
 TODAY = date.today().strftime("%Y-%m-%d")
 
