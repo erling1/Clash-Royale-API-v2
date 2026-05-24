@@ -1,11 +1,34 @@
 use actix_web::web;
 
+pub mod arenas;
+pub mod battles;
 pub mod cards;
+pub mod clans;
+pub mod game_modes;
+pub mod players;
+pub mod rankings;
+pub mod support_cards;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/v1")
+            .service(arenas::list_arenas)
+            .service(arenas::get_arena)
             .service(cards::list_cards)
             .service(cards::get_card)
+            .service(clans::list_clans)
+            .service(clans::get_clan)
+            .service(game_modes::list_game_modes)
+            .service(game_modes::get_game_mode)
+            .service(support_cards::list_support_cards)
+            .service(support_cards::get_support_card)
+            .service(players::list_players)
+            .service(players::get_player)
+            .service(battles::list_battles)
+            .service(battles::get_battle)
+            .service(battles::list_battle_participants)
+            .service(battles::list_battle_deck_cards)
+            .service(battles::list_battle_support_cards)
+            .service(rankings::list_rankings),
     );
 }
