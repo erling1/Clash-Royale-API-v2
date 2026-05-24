@@ -67,10 +67,9 @@ export interface Player {
 }
 
 export interface Battle {
-  battle_id: string;
   queried_player_tag: string;
-  battle_type: string;
   battle_time: string;
+  battle_type: string;
   is_ladder_tournament: boolean;
   is_hosted_match: boolean;
   league_number: number | null;
@@ -84,8 +83,8 @@ export interface Battle {
 }
 
 export interface BattleParticipant {
-  participant_id: string;
-  battle_id: string;
+  queried_player_tag: string;
+  battle_time: string;
   participant_side: string;
   slot: number;
   player_tag: string;
@@ -100,13 +99,15 @@ export interface BattleParticipant {
   clan_tag: string | null;
   global_rank: number | null;
   elixir_leaked: number | null;
-  is_winner: boolean;
+  is_winner: boolean | null;
   extracted_date: string;
 }
 
 export interface BattleDeckCard {
-  participant_id: string;
-  battle_id: string;
+  queried_player_tag: string;
+  battle_time: string;
+  participant_side: string;
+  slot: number;
   deck_slot: number;
   card_id: number;
   card_level: number;
@@ -116,8 +117,10 @@ export interface BattleDeckCard {
 }
 
 export interface BattleSupportCard {
-  participant_id: string;
-  battle_id: string;
+  queried_player_tag: string;
+  battle_time: string;
+  participant_side: string;
+  slot: number;
   support_slot: number;
   card_id: number;
   card_level: number;
@@ -133,4 +136,52 @@ export interface PolRanking {
   elo_rating: number;
   clan_tag: string | null;
   extracted_date: string;
+}
+
+export interface DeckMeta {
+  deck_hash: string;
+  deck_label: string | null;
+  total_elixir_cost: number | null;
+  avg_elixir_cost: number | null;
+  appearance_count: number;
+  win_count: number;
+  loss_count: number;
+  draw_count: number;
+  win_rate: number | null;
+  avg_trophy_change: number | null;
+  avg_crowns: number | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  popularity_rank: number;
+}
+
+export interface CardMeta {
+  card_id: number;
+  card_name: string | null;
+  rarity: string | null;
+  elixir_cost: number | null;
+  appearance_count: number;
+  inclusion_rate: number | null;
+  usage_pct: number | null;
+  win_count: number;
+  loss_count: number;
+  draw_count: number;
+  win_rate: number | null;
+  evolution_count: number;
+  evolution_pct: number | null;
+  avg_card_level: number | null;
+  popularity_rank: number;
+}
+
+export interface CardPair {
+  card_id_a: number;
+  card_name_a: string | null;
+  card_id_b: number;
+  card_name_b: string | null;
+  co_occurrence_count: number;
+  win_count: number;
+  loss_count: number;
+  draw_count: number;
+  joint_win_rate: number | null;
+  popularity_rank: number;
 }

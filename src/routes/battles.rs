@@ -24,42 +24,42 @@ pub async fn list_battles(
     Ok(HttpResponse::Ok().json(battles))
 }
 
-#[get("/battles/{battle_id}")]
+#[get("/battles/{queried_player_tag}/{battle_time}")]
 pub async fn get_battle(
     repo: web::Data<BattleRepo>,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let battle = repo.get(id).await?;
+    let (tag, time) = path.into_inner();
+    let battle = repo.get(tag, time).await?;
     Ok(HttpResponse::Ok().json(battle))
 }
 
-#[get("/battles/{battle_id}/participants")]
+#[get("/battles/{queried_player_tag}/{battle_time}/participants")]
 pub async fn list_battle_participants(
     repo: web::Data<BattleRepo>,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let rows = repo.participants(id).await?;
+    let (tag, time) = path.into_inner();
+    let rows = repo.participants(tag, time).await?;
     Ok(HttpResponse::Ok().json(rows))
 }
 
-#[get("/battles/{battle_id}/deck-cards")]
+#[get("/battles/{queried_player_tag}/{battle_time}/deck-cards")]
 pub async fn list_battle_deck_cards(
     repo: web::Data<BattleRepo>,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let rows = repo.deck_cards(id).await?;
+    let (tag, time) = path.into_inner();
+    let rows = repo.deck_cards(tag, time).await?;
     Ok(HttpResponse::Ok().json(rows))
 }
 
-#[get("/battles/{battle_id}/support-cards")]
+#[get("/battles/{queried_player_tag}/{battle_time}/support-cards")]
 pub async fn list_battle_support_cards(
     repo: web::Data<BattleRepo>,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
-    let id = path.into_inner();
-    let rows = repo.support_cards(id).await?;
+    let (tag, time) = path.into_inner();
+    let rows = repo.support_cards(tag, time).await?;
     Ok(HttpResponse::Ok().json(rows))
 }

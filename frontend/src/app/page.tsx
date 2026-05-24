@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { listCards, listRankings } from "@/lib/api";
+import { listCards, listDecks, listRankings } from "@/lib/api";
 import { Panel } from "@/components/panel";
 import { Ticker } from "@/components/ticker";
 import { Delta } from "@/components/delta";
 import { MockBanner } from "@/components/mock-banner";
-import { fmtInt, displayTag } from "@/lib/format";
+import { fmtInt, fmtPct, displayTag } from "@/lib/format";
 
 /* ─────────────────────────────────────────────────────────────────────
    MOCK DATA — replace once the listed endpoints exist.
@@ -60,23 +60,14 @@ const MOCK_MOVERS = {
   ],
 };
 
-// MOCK: GET /api/v1/decks/top?limit=6
-const MOCK_TOP_DECKS = [
-  { rank: 1, name: "Drill Cycle 2.6", win: 62.4, use: 4.1, delta: 1.3 },
-  { rank: 2, name: "Log Bait", win: 58.9, use: 3.4, delta: 0.8 },
-  { rank: 3, name: "Hog 2.6 Cycle", win: 56.7, use: 5.2, delta: -0.2 },
-  { rank: 4, name: "X-Bow 2.9", win: 55.4, use: 2.1, delta: 2.4 },
-  { rank: 5, name: "Royal Recruits Bridge", win: 54.8, use: 1.9, delta: 0.4 },
-  { rank: 6, name: "Pekka Bridge Spam", win: 54.1, use: 3.7, delta: -1.1 },
-];
-
 /* ─────────────────────────────────────────────────────────────────── */
 
 export default async function HomePage() {
   // Real data — fetched server-side. Falls back gracefully if API is down.
-  const [cards, rankings] = await Promise.all([
+  const [cards, rankings, decks] = await Promise.all([
     listCards(),
     listRankings(10),
+    listDecks(6),
   ]);
 
   return (
@@ -127,7 +118,7 @@ export default async function HomePage() {
 
       {/* TOP DECKS */}
       <Panel
-        title="Top Decks — Week 23.4"
+        title="Top Decks"
         folio="§ IV."
         keybind="G D"
         rightSlot={
@@ -139,38 +130,43 @@ export default async function HomePage() {
           </Link>
         }
       >
-        <MockBanner endpoint="GET /api/v1/decks/top?limit=N" />
-        <table className="w-full text-sm">
-          <thead className="text-left label-dim border-b border-[var(--color-rule)]">
-            <tr>
-              <th className="py-2 pr-4 font-normal w-[36px]">#</th>
-              <th className="py-2 pr-4 font-normal">deck</th>
-              <th className="py-2 pr-4 font-normal text-right">win %</th>
-              <th className="py-2 pr-4 font-normal text-right">use %</th>
-              <th className="py-2 pr-4 font-normal text-right">Δ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_TOP_DECKS.map((d) => (
-              <tr
-                key={d.rank}
-                className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
-              >
-                <td className="py-2 pr-4 text-[var(--color-fg-dim)] tabular-nums">
-                  {d.rank.toString().padStart(2, "0")}
-                </td>
-                <td className="py-2 pr-4">{d.name}</td>
-                <td className="py-2 pr-4 text-right tabular-nums">{d.win.toFixed(1)}</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
-                  {d.use.toFixed(1)}
-                </td>
-                <td className="py-2 pr-4 text-right">
-                  <Delta value={d.delta} />
-                </td>
+        {decks.length === 0 ? (
+          <EmptyState message="No deck data — has marts.fct_deck_meta been built?" />
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-left label-dim border-b border-[var(--color-rule)]">
+              <tr>
+                <th className="py-2 pr-4 font-normal w-[36px]">#</th>
+                <th className="py-2 pr-4 font-normal">deck</th>
+                <th className="py-2 pr-4 font-normal text-right">avg elx</th>
+                <th className="py-2 pr-4 font-normal text-right">win %</th>
+                <th className="py-2 pr-4 font-normal text-right">games</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {decks.map((d) => (
+                <tr
+                  key={d.deck_hash}
+                  className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
+                >
+                  <td className="py-2 pr-4 text-[var(--color-fg-dim)] tabular-nums">
+                    {d.popularity_rank.toString().padStart(2, "0")}
+                  </td>
+                  <td className="py-2 pr-4">{d.deck_label ?? "—"}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
+                    {d.avg_elixir_cost != null ? d.avg_elixir_cost.toFixed(1) : "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-right tabular-nums">
+                    {d.win_rate != null ? fmtPct(d.win_rate * 100) : "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
+                    {fmtInt(d.appearance_count)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Panel>
 
       {/* TOP PLAYERS — REAL data from /rankings */}

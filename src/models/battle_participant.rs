@@ -2,8 +2,8 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct BattleParticipant {
-    pub participant_id: String,
-    pub battle_id: String,
+    pub queried_player_tag: String,
+    pub battle_time: String,
     pub participant_side: String,
     pub slot: i64,
     pub player_tag: String,
@@ -18,17 +18,17 @@ pub struct BattleParticipant {
     pub clan_tag: Option<String>,
     pub global_rank: Option<f64>,
     pub elixir_leaked: Option<f64>,
-    pub is_winner: bool,
+    pub is_winner: Option<bool>,
     pub extracted_date: String,
 }
 
 impl BattleParticipant {
-    pub const COLUMNS: &'static str = "participant_id, battle_id, participant_side, slot, player_tag, player_name, starting_trophies, trophy_change, crowns, king_tower_hit_points, princess_tower_1_hp, princess_tower_2_hp, total_tower_hp_remaining, clan_tag, global_rank, elixir_leaked, is_winner, CAST(extracted_date AS VARCHAR) AS extracted_date";
+    pub const COLUMNS: &'static str = "queried_player_tag, strftime(battle_time, '%Y-%m-%dT%H:%M:%S') AS battle_time, participant_side, slot, player_tag, player_name, starting_trophies, trophy_change, crowns, king_tower_hit_points, princess_tower_1_hp, princess_tower_2_hp, total_tower_hp_remaining, clan_tag, global_rank, elixir_leaked, is_winner, CAST(extracted_date AS VARCHAR) AS extracted_date";
 
     pub fn from_row(row: &duckdb::Row) -> duckdb::Result<Self> {
         Ok(Self {
-            participant_id: row.get(0)?,
-            battle_id: row.get(1)?,
+            queried_player_tag: row.get(0)?,
+            battle_time: row.get(1)?,
             participant_side: row.get(2)?,
             slot: row.get(3)?,
             player_tag: row.get(4)?,

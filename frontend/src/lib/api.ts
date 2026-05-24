@@ -12,7 +12,10 @@ import type {
   BattleParticipant,
   BattleSupportCard,
   Card,
+  CardMeta,
+  CardPair,
   Clan,
+  DeckMeta,
   GameMode,
   Player,
   PolRanking,
@@ -53,6 +56,22 @@ export const getCard = (id: number) => getJSON<Card>(`/cards/${id}`, { revalidat
 export const listSupportCards = () =>
   getList<SupportCard>("/support-cards", { revalidate: 3600 });
 
+/* ─────────────── card analytics ─────────────── */
+
+export const listCardMeta = (limit = 100) =>
+  getList<CardMeta>(`/card-meta?limit=${limit}`, { revalidate: 600 });
+
+export const getCardMeta = (id: number) =>
+  getJSON<CardMeta>(`/card-meta/${id}`, { revalidate: 600 });
+
+export const listCardPairs = (params: { cardId?: number; limit?: number } = {}) => {
+  const qs = new URLSearchParams();
+  if (params.cardId != null) qs.set("card_id", String(params.cardId));
+  if (params.limit) qs.set("limit", String(params.limit));
+  const q = qs.toString();
+  return getList<CardPair>(`/card-pairs${q ? `?${q}` : ""}`, { revalidate: 600 });
+};
+
 /* ─────────────── arenas / modes ─────────────── */
 
 export const listArenas = () => getList<Arena>("/arenas", { revalidate: 3600 });
@@ -86,26 +105,38 @@ export const listBattles = (params: { playerTag?: string; limit?: number } = {})
   return getList<Battle>(`/battles${q ? `?${q}` : ""}`, { revalidate: 60 });
 };
 
-export const getBattle = (id: string) =>
-  getJSON<Battle>(`/battles/${encodeURIComponent(id)}`, { revalidate: 600 });
+/** Composite battle key: (queriedPlayerTag, battleTime). */
+const battleBase = (queriedPlayerTag: string, battleTime: string) =>
+  `/battles/${encodeURIComponent(queriedPlayerTag)}/${encodeURIComponent(battleTime)}`;
 
-export const listBattleParticipants = (id: string) =>
+export const getBattle = (queriedPlayerTag: string, battleTime: string) =>
+  getJSON<Battle>(battleBase(queriedPlayerTag, battleTime), { revalidate: 600 });
+
+export const listBattleParticipants = (queriedPlayerTag: string, battleTime: string) =>
   getList<BattleParticipant>(
-    `/battles/${encodeURIComponent(id)}/participants`,
+    `${battleBase(queriedPlayerTag, battleTime)}/participants`,
     { revalidate: 600 },
   );
 
-export const listBattleDeckCards = (id: string) =>
+export const listBattleDeckCards = (queriedPlayerTag: string, battleTime: string) =>
   getList<BattleDeckCard>(
-    `/battles/${encodeURIComponent(id)}/deck-cards`,
+    `${battleBase(queriedPlayerTag, battleTime)}/deck-cards`,
     { revalidate: 600 },
   );
 
-export const listBattleSupportCards = (id: string) =>
+export const listBattleSupportCards = (queriedPlayerTag: string, battleTime: string) =>
   getList<BattleSupportCard>(
-    `/battles/${encodeURIComponent(id)}/support-cards`,
+    `${battleBase(queriedPlayerTag, battleTime)}/support-cards`,
     { revalidate: 600 },
   );
+
+/* ─────────────── decks ─────────────── */
+
+export const listDecks = (limit = 100) =>
+  getList<DeckMeta>(`/decks?limit=${limit}`, { revalidate: 600 });
+
+export const getDeck = (deckHash: string) =>
+  getJSON<DeckMeta>(`/decks/${encodeURIComponent(deckHash)}`, { revalidate: 600 });
 
 /* ─────────────── clans ─────────────── */
 

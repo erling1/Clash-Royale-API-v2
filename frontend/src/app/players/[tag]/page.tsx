@@ -81,9 +81,6 @@ export default async function PlayerDetailPage({
                 <th className="py-2 pr-4 font-normal">arena</th>
                 <th className="py-2 pr-4 font-normal text-center">crowns</th>
                 <th className="py-2 pr-4 font-normal text-right">result</th>
-                <th className="py-2 pr-4 font-normal text-right text-[var(--color-fg-muted)]">
-                  battle
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +89,7 @@ export default async function PlayerDetailPage({
                 const won = b.winner_side === "team";
                 return (
                   <tr
-                    key={b.battle_id}
+                    key={`${b.queried_player_tag}|${b.battle_time}`}
                     className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
                   >
                     <td className="py-1.5 pr-4 text-[var(--color-fg-dim)]">
@@ -111,9 +108,6 @@ export default async function PlayerDetailPage({
                       }`}
                     >
                       {won ? "win" : "loss"}
-                    </td>
-                    <td className="py-1.5 pr-4 text-right text-[var(--color-fg-muted)] text-xs">
-                      <span className="font-mono">{b.battle_id.slice(0, 8)}…</span>
                     </td>
                   </tr>
                 );

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCard } from "@/lib/api";
+import { getCard, getCardMeta, listCardPairs } from "@/lib/api";
 import { Panel } from "@/components/panel";
 import { MockBanner } from "@/components/mock-banner";
-import { Delta } from "@/components/delta";
+import { fmtInt, fmtPct } from "@/lib/format";
 
 export default async function CardDetailPage({
   params,
@@ -14,23 +14,27 @@ export default async function CardDetailPage({
   const cardId = Number(id);
   if (!Number.isFinite(cardId)) notFound();
 
-  const card = await getCard(cardId);
+  const [card, meta, pairs] = await Promise.all([
+    getCard(cardId),
+    getCardMeta(cardId),
+    listCardPairs({ cardId, limit: 10 }),
+  ]);
   if (!card) notFound();
 
-  // MOCK: GET /api/v1/cards/{id}/stats
-  const MOCK_STATS = {
-    usage_pct: 18.4,
-    win_rate_when_included: 53.2,
-    delta_usage_pct_week: 1.7,
-    weighted_appearances: 14_209,
-  };
-
-  // MOCK: GET /api/v1/cards/{id}/partners
-  const MOCK_PARTNERS = [
-    { name: "Hog Rider", co_occurrence: 41.2 },
-    { name: "Musketeer", co_occurrence: 35.8 },
-    { name: "Skeletons", co_occurrence: 33.1 },
-  ];
+  // Partner = the other card in each pair. Co-occurrence ratio = pair_count / this_card_appearances.
+  const partners = pairs.map((p) => {
+    const isA = p.card_id_a === cardId;
+    return {
+      partner_id: isA ? p.card_id_b : p.card_id_a,
+      partner_name: isA ? p.card_name_b : p.card_name_a,
+      co_occurrence_count: p.co_occurrence_count,
+      co_occurrence_pct:
+        meta && meta.appearance_count > 0
+          ? (p.co_occurrence_count / meta.appearance_count) * 100
+          : null,
+      joint_win_rate: p.joint_win_rate,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -47,47 +51,101 @@ export default async function CardDetailPage({
       </Panel>
 
       <Panel title="Usage" folio="§ II." keybind="U">
-        <MockBanner endpoint={`GET /api/v1/cards/${card.card_id}/stats`} />
-        <div className="grid grid-cols-4 gap-6">
-          <Stat label="usage %" value={MOCK_STATS.usage_pct.toFixed(1)} />
-          <Stat
-            label="win % when included"
-            value={MOCK_STATS.win_rate_when_included.toFixed(1)}
-          />
-          <Stat
-            label="Δ usage 7d"
-            value={<Delta value={MOCK_STATS.delta_usage_pct_week} />}
-          />
-          <Stat
-            label="weighted apps"
-            value={MOCK_STATS.weighted_appearances.toLocaleString()}
-          />
-        </div>
+        {meta == null ? (
+          <MockBanner endpoint={`GET /api/v1/card-meta/${card.card_id} (no data yet)`} />
+        ) : (
+          <>
+            <p className="label-dim mb-3">
+              source:{" "}
+              <span className="text-[var(--color-fg)]">
+                GET /api/v1/card-meta/{card.card_id}
+              </span>
+            </p>
+            <div className="grid grid-cols-4 gap-6">
+              <Stat
+                label="usage %"
+                value={meta.usage_pct != null ? fmtPct(meta.usage_pct * 100) : "—"}
+              />
+              <Stat
+                label="inclusion %"
+                value={
+                  meta.inclusion_rate != null ? fmtPct(meta.inclusion_rate * 100) : "—"
+                }
+              />
+              <Stat
+                label="win % when included"
+                value={meta.win_rate != null ? fmtPct(meta.win_rate * 100) : "—"}
+              />
+              <Stat label="appearances" value={fmtInt(meta.appearance_count)} />
+              <Stat
+                label="evolution %"
+                value={meta.evolution_pct != null ? fmtPct(meta.evolution_pct * 100) : "—"}
+              />
+              <Stat label="popularity rank" value={`#${meta.popularity_rank}`} />
+              <Stat
+                label="avg card level"
+                value={meta.avg_card_level != null ? meta.avg_card_level.toFixed(1) : "—"}
+              />
+              <Stat
+                label="W-L-D"
+                value={`${meta.win_count}-${meta.loss_count}-${meta.draw_count}`}
+              />
+            </div>
+          </>
+        )}
       </Panel>
 
       <Panel title="Top Partners" folio="§ III." keybind="P">
-        <MockBanner endpoint={`GET /api/v1/cards/${card.card_id}/partners`} />
-        <table className="w-full text-sm">
-          <thead className="text-left label-dim border-b border-[var(--color-rule)]">
-            <tr>
-              <th className="py-2 pr-4 font-normal">partner</th>
-              <th className="py-2 pr-4 font-normal text-right">co-occurrence %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_PARTNERS.map((p) => (
-              <tr
-                key={p.name}
-                className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
-              >
-                <td className="py-1.5 pr-4">{p.name}</td>
-                <td className="py-1.5 pr-4 text-right tabular-nums">
-                  {p.co_occurrence.toFixed(1)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {partners.length === 0 ? (
+          <div className="py-6 text-center text-[var(--color-fg-muted)] label-dim">
+            no partner data for this card
+          </div>
+        ) : (
+          <>
+            <p className="label-dim mb-3">
+              source:{" "}
+              <span className="text-[var(--color-fg)]">
+                GET /api/v1/card-pairs?card_id={card.card_id}
+              </span>
+            </p>
+            <table className="w-full text-sm">
+              <thead className="text-left label-dim border-b border-[var(--color-rule)]">
+                <tr>
+                  <th className="py-2 pr-4 font-normal">partner</th>
+                  <th className="py-2 pr-4 font-normal text-right">co-occurrence %</th>
+                  <th className="py-2 pr-4 font-normal text-right">co-occurrence n</th>
+                  <th className="py-2 pr-4 font-normal text-right">joint win %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partners.map((p) => (
+                  <tr
+                    key={p.partner_id}
+                    className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
+                  >
+                    <td className="py-1.5 pr-4">
+                      <Link
+                        href={`/cards/${p.partner_id}`}
+                        className="hover:text-[var(--color-accent)]"
+                      >
+                        {p.partner_name ?? `#${p.partner_id}`}
+                      </Link>
+                    </td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums">
+                      {p.co_occurrence_pct != null ? fmtPct(p.co_occurrence_pct) : "—"}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
+                      {fmtInt(p.co_occurrence_count)}
+                    </td>
+                    <td className="py-1.5 pr-4 text-right tabular-nums">
+                      {p.joint_win_rate != null ? fmtPct(p.joint_win_rate * 100) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </Panel>
 
       <div>

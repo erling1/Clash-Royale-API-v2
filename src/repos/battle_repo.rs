@@ -41,15 +41,19 @@ impl BattleRepo {
         Ok(battles)
     }
 
-    pub async fn get(&self, id: String) -> Result<Battle, AppError> {
+    pub async fn get(
+        &self,
+        queried_player_tag: String,
+        battle_time: String,
+    ) -> Result<Battle, AppError> {
         let sql = format!(
-            "SELECT {} FROM marts.fct_battles WHERE battle_id = ?",
+            "SELECT {} FROM marts.fct_battles WHERE queried_player_tag = ? AND battle_time = CAST(? AS TIMESTAMP)",
             Battle::COLUMNS
         );
 
         let battle = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            stmt.query_row([id], Battle::from_row)
+            stmt.query_row(duckdb::params![queried_player_tag, battle_time], Battle::from_row)
         }).await;
 
         match battle {
@@ -61,45 +65,57 @@ impl BattleRepo {
         }
     }
 
-    pub async fn participants(&self, battle_id: String) -> Result<Vec<BattleParticipant>, AppError> {
+    pub async fn participants(
+        &self,
+        queried_player_tag: String,
+        battle_time: String,
+    ) -> Result<Vec<BattleParticipant>, AppError> {
         let sql = format!(
-            "SELECT {} FROM marts.fct_battle_participants WHERE battle_id = ? ORDER BY participant_side, slot",
+            "SELECT {} FROM marts.fct_battle_participants WHERE queried_player_tag = ? AND battle_time = CAST(? AS TIMESTAMP) ORDER BY participant_side, slot",
             BattleParticipant::COLUMNS
         );
 
         let rows = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map([battle_id], BattleParticipant::from_row)?;
+            let rows = stmt.query_map(duckdb::params![queried_player_tag, battle_time], BattleParticipant::from_row)?;
             rows.collect::<duckdb::Result<Vec<BattleParticipant>>>()
         }).await?;
 
         Ok(rows)
     }
 
-    pub async fn deck_cards(&self, battle_id: String) -> Result<Vec<BattleDeckCard>, AppError> {
+    pub async fn deck_cards(
+        &self,
+        queried_player_tag: String,
+        battle_time: String,
+    ) -> Result<Vec<BattleDeckCard>, AppError> {
         let sql = format!(
-            "SELECT {} FROM marts.fct_battle_deck_cards WHERE battle_id = ? ORDER BY participant_id, deck_slot",
+            "SELECT {} FROM marts.fct_battle_deck_cards WHERE queried_player_tag = ? AND battle_time = CAST(? AS TIMESTAMP) ORDER BY participant_side, slot, deck_slot",
             BattleDeckCard::COLUMNS
         );
 
         let rows = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map([battle_id], BattleDeckCard::from_row)?;
+            let rows = stmt.query_map(duckdb::params![queried_player_tag, battle_time], BattleDeckCard::from_row)?;
             rows.collect::<duckdb::Result<Vec<BattleDeckCard>>>()
         }).await?;
 
         Ok(rows)
     }
 
-    pub async fn support_cards(&self, battle_id: String) -> Result<Vec<BattleSupportCard>, AppError> {
+    pub async fn support_cards(
+        &self,
+        queried_player_tag: String,
+        battle_time: String,
+    ) -> Result<Vec<BattleSupportCard>, AppError> {
         let sql = format!(
-            "SELECT {} FROM marts.fct_battle_support_cards WHERE battle_id = ? ORDER BY participant_id, support_slot",
+            "SELECT {} FROM marts.fct_battle_support_cards WHERE queried_player_tag = ? AND battle_time = CAST(? AS TIMESTAMP) ORDER BY participant_side, slot, support_slot",
             BattleSupportCard::COLUMNS
         );
 
         let rows = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map([battle_id], BattleSupportCard::from_row)?;
+            let rows = stmt.query_map(duckdb::params![queried_player_tag, battle_time], BattleSupportCard::from_row)?;
             rows.collect::<duckdb::Result<Vec<BattleSupportCard>>>()
         }).await?;
 

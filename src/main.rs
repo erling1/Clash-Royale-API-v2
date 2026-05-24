@@ -7,7 +7,7 @@ mod repos;
 mod routes;
 
 use repos::{
-    ArenaRepo, BattleRepo, CardRepo, ClanRepo, GameModeRepo,
+    ArenaRepo, BattleRepo, CardRepo, ClanRepo, DeckRepo, GameModeRepo,
     PlayerRepo, PolRankingRepo, SupportCardRepo,
 };
 
@@ -21,6 +21,7 @@ async fn main() -> std::io::Result<()> {
     let battle_repo = web::Data::new(BattleRepo::new(pool.clone()));
     let card_repo = web::Data::new(CardRepo::new(pool.clone()));
     let clan_repo = web::Data::new(ClanRepo::new(pool.clone()));
+    let deck_repo = web::Data::new(DeckRepo::new(pool.clone()));
     let game_mode_repo = web::Data::new(GameModeRepo::new(pool.clone()));
     let player_repo = web::Data::new(PlayerRepo::new(pool.clone()));
     let pol_ranking_repo = web::Data::new(PolRankingRepo::new(pool.clone()));
@@ -32,6 +33,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(battle_repo.clone())
             .app_data(card_repo.clone())
             .app_data(clan_repo.clone())
+            .app_data(deck_repo.clone())
             .app_data(game_mode_repo.clone())
             .app_data(player_repo.clone())
             .app_data(pol_ranking_repo.clone())
