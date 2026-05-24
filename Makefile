@@ -5,20 +5,24 @@ DATA_DIR   := $(CURDIR)/data
 CONTEXT    := database
 DUCKDB     := $(CURDIR)/database/data/mydb.duckdb
 
-.PHONY: build run stop logs clean prune help duck
+.PHONY: build run stop logs clean prune help duck pipeline
 
 help:
 	@echo "Targets:"
-	@echo "  build   Build the Docker image ($(IMAGE))"
-	@echo "  run     Build (if needed) and run the container in the background"
-	@echo "  stop    Stop and remove the running container"
-	@echo "  logs    Tail the container's logs"
-	@echo "  clean   Remove this project's container and image"
-	@echo "  prune   clean + 'docker system prune -f' (removes ALL unused Docker resources)"
-	@echo "  duck    Open the DuckDB CLI on $(DUCKDB)"
+	@echo "  build      Build the Docker image ($(IMAGE))"
+	@echo "  run        Build (if needed) and run the container in the background"
+	@echo "  stop       Stop and remove the running container"
+	@echo "  logs       Tail the container's logs"
+	@echo "  clean      Remove this project's container and image"
+	@echo "  prune      clean + 'docker system prune -f' (removes ALL unused Docker resources)"
+	@echo "  duck       Open the DuckDB CLI on $(DUCKDB)"
+	@echo "  pipeline   Run extract + dbt run (the full daily refresh)"
 
 duck:
 	duckdb $(DUCKDB)
+
+pipeline:
+	$(CURDIR)/extract/run_pipeline.sh
 
 build:
 	docker build -t $(IMAGE) $(CONTEXT)

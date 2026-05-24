@@ -20,8 +20,11 @@ models:
   clash_royale:
     +materialized: view
     staging:
-      +materialized: table
-      +schema: staging
       clashroyal:
+        +schema: staging
         base:
+          +materialized: table
           +schema: base
+    marts:
+      +materialized: table
+      +schema: marts
