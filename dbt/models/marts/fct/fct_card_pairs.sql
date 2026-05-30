@@ -41,5 +41,5 @@ select
     end as joint_win_rate,
     row_number() over (order by s.co_occurrence_count desc) as popularity_rank
 from stats s
-left join {{ ref('dim_cards') }} ca on ca.card_id = s.card_id_a
-left join {{ ref('dim_cards') }} cb on cb.card_id = s.card_id_b
+left join {{ ref('dim_cards') }} ca on ca.card_id = s.card_id_a and ca.card_variant = 'base'
+left join {{ ref('dim_cards') }} cb on cb.card_id = s.card_id_b and cb.card_variant = 'base'

@@ -8,3 +8,4 @@ sources:
       - name: battle_deck_cards
       - name: battle_support_cards
       - name: pol_rankings
+      - name: cards

@@ -24,7 +24,7 @@ with_card_info as (
         c.elixir_cost,
         c.rarity
     from expanded e
-    left join {{ ref('dim_cards') }} c on c.card_id = e.card_id
+    left join {{ ref('dim_cards') }} c on c.card_id = e.card_id and c.card_variant = 'base'
 )
 select
     deck_hash,

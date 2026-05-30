@@ -42,4 +42,4 @@ select
     row_number() over (order by s.appearance_count desc) as popularity_rank
 from stats s
 cross join totals t
-left join {{ ref('dim_cards') }} c on c.card_id = s.card_id
+left join {{ ref('dim_cards') }} c on c.card_id = s.card_id and c.card_variant = 'base'
