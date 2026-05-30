@@ -1,82 +1,138 @@
-import { listDecks } from "@/lib/api";
-import { Panel } from "@/components/panel";
-import { fmtInt, fmtPct } from "@/lib/format";
+"use client";
 
-export default async function DecksPage() {
-  const decks = await listDecks(200);
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { type ColumnDef } from "@tanstack/react-table";
+import { api } from "@/lib/api";
+import type { Card, DeckMeta } from "@/lib/types";
+import { DataTable } from "@/components/data-table";
+import { DeckGrid } from "@/components/deck-grid";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { fmtFloat, fmtInt, fmtPct } from "@/lib/format";
 
-  if (decks.length === 0) {
-    return (
-      <Panel title="Top Decks" folio="§ I." keybind="D">
-        <div className="py-8 text-center text-[var(--color-fg-muted)] label-dim">
-          No deck data — is the Rust API running on :3000? Has{" "}
-          <span className="text-[var(--color-fg)]">marts.fct_deck_meta</span> been
-          built yet?
-        </div>
-      </Panel>
-    );
-  }
+export default function DecksPage() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["decks", 1000],
+    queryFn: () => api.listDecks(1000),
+  });
+
+  const { data: cards } = useQuery({
+    queryKey: ["cards"],
+    queryFn: () => api.listCards(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const cardsById = useMemo(
+    () => new Map<number, Card>((cards ?? []).map((c) => [c.card_id, c])),
+    [cards],
+  );
+
+  const columns = useMemo<ColumnDef<DeckMeta>[]>(
+    () => [
+      {
+        accessorKey: "popularity_rank",
+        header: "#",
+        cell: (info) => (
+          <span className="font-display text-fg-muted">
+            #{info.getValue<number>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "deck_label",
+        header: "Deck",
+        cell: (info) => {
+          const deck = info.row.original;
+          const label = info.getValue<string | null>();
+          return (
+            <div className="min-w-[260px]">
+              <DeckGrid cardIds={deck.card_ids} cardsById={cardsById} size={48} />
+              {label && label.length > 0 && (
+                <span className="sr-only">{label}</span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "avg_elixir_cost",
+        header: "Avg elixir",
+        cell: (info) => (
+          <span className="tabular-nums">
+            {fmtFloat(info.getValue<number | null>(), 1)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "win_rate",
+        header: "Win rate",
+        cell: (info) => {
+          const v = info.getValue<number | null>();
+          const variant = v === null ? "muted" : v >= 0.55 ? "success" : v < 0.45 ? "danger" : "muted";
+          return <Badge variant={variant}>{fmtPct(v)}</Badge>;
+        },
+      },
+      {
+        accessorKey: "appearance_count",
+        header: "Plays",
+        cell: (info) => (
+          <span className="tabular-nums">{fmtInt(info.getValue<number>())}</span>
+        ),
+      },
+      {
+        accessorKey: "avg_crowns",
+        header: "Avg crowns",
+        cell: (info) => (
+          <span className="tabular-nums">{fmtFloat(info.getValue<number | null>(), 2)}</span>
+        ),
+      },
+      {
+        accessorKey: "avg_trophy_change",
+        header: "Avg Δ trophies",
+        cell: (info) => {
+          const v = info.getValue<number | null>();
+          const tone = v === null ? "text-fg-dim" : v >= 0 ? "text-success" : "text-danger";
+          return <span className={`tabular-nums ${tone}`}>{fmtFloat(v, 1)}</span>;
+        },
+      },
+    ],
+    [cardsById],
+  );
 
   return (
     <div className="space-y-6">
-      <Panel title="Top Decks" folio="§ I." keybind="D">
-        <p className="label-dim mb-2">
-          source: <span className="text-[var(--color-fg)]">GET /api/v1/decks</span>
+      <div>
+        <h1 className="font-display text-4xl tracking-wide text-fg text-glow-gold">Decks</h1>
+        <p className="mt-1 text-sm text-fg-muted">
+          Deck archetypes ranked by popularity. Sort or filter to find the meta.
         </p>
-        <p className="prose-lede text-[var(--color-fg-dim)] max-w-[68ch]">
-          {fmtInt(decks.length)} decks observed in the current data window. Win-rate
-          excludes draws. Decks with few appearances have noisy win-rates — sort
-          and filter accordingly.
-        </p>
-      </Panel>
+      </div>
 
-      <Panel title="Ranked" folio="§ II." noPadding>
-        <table className="w-full text-sm">
-          <thead className="text-left label-dim border-b border-[var(--color-rule)]">
-            <tr>
-              <th className="py-2 px-4 font-normal w-[48px]">#</th>
-              <th className="py-2 pr-4 font-normal">deck</th>
-              <th className="py-2 pr-4 font-normal text-right">avg elx</th>
-              <th className="py-2 pr-4 font-normal text-right">win %</th>
-              <th className="py-2 pr-4 font-normal text-right">games</th>
-              <th className="py-2 pr-4 font-normal text-right text-[var(--color-fg-muted)]">
-                W-L-D
-              </th>
-              <th className="py-2 px-4 font-normal text-right text-[var(--color-fg-muted)]">
-                hash
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {decks.map((d) => (
-              <tr
-                key={d.deck_hash}
-                className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
-              >
-                <td className="py-2 px-4 text-[var(--color-fg-dim)] tabular-nums">
-                  {d.popularity_rank.toString().padStart(2, "0")}
-                </td>
-                <td className="py-2 pr-4">{d.deck_label ?? "—"}</td>
-                <td className="py-2 pr-4 text-right tabular-nums">
-                  {d.avg_elixir_cost != null ? d.avg_elixir_cost.toFixed(1) : "—"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums">
-                  {d.win_rate != null ? fmtPct(d.win_rate * 100) : "—"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
-                  {fmtInt(d.appearance_count)}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-[var(--color-fg-muted)] text-xs">
-                  {d.win_count}-{d.loss_count}-{d.draw_count}
-                </td>
-                <td className="py-2 px-4 text-right tabular-nums text-[var(--color-fg-muted)] text-xs">
-                  {d.deck_hash.slice(0, 8)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Panel>
+      {isError ? (
+        <p className="text-danger">Failed to load decks.</p>
+      ) : isLoading || !data ? (
+        <DeckTableSkeleton />
+      ) : (
+        <DataTable
+          data={data}
+          columns={columns}
+          searchColumn="deck_label"
+          searchPlaceholder="Filter by deck label…"
+          initialSorting={[{ id: "popularity_rank", desc: false }]}
+          pageSize={25}
+        />
+      )}
+    </div>
+  );
+}
+
+function DeckTableSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
     </div>
   );
 }

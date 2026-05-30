@@ -1,26 +1,28 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Inter, Lilita_One } from "next/font/google";
 import "./globals.css";
-import { Masthead } from "@/components/masthead";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-const mono = JetBrains_Mono({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-mono-loaded",
+  variable: "--font-inter",
   display: "swap",
 });
 
-const prose = IBM_Plex_Sans({
+const lilita = Lilita_One({
   subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-prose-loaded",
+  weight: "400",
+  variable: "--font-lilita",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "META REPORT — clashroyale.stats",
+  title: "Arena Insights — unofficial card game stats",
   description:
-    "An editorial stats terminal for Clash Royale. Decks, cards, and players for the competitive ladder.",
+    "Unofficial community stats explorer. Not affiliated with or endorsed by Supercell.",
 };
 
 export default function RootLayout({
@@ -29,16 +31,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${mono.variable} ${prose.variable}`}>
-      <body>
-        <Masthead dateline="Season 23 / Day 4" updatedAgo="just now" />
-        <main className="mx-auto max-w-[1440px] px-6 py-6">{children}</main>
-        <footer className="mx-auto max-w-[1440px] px-6 py-8 border-t border-[var(--color-rule)] mt-12">
-          <div className="flex justify-between label-dim">
-            <span>clashroyale.stats — first draft</span>
-            <span>data via internal actix-web API on :3000</span>
-          </div>
-        </footer>
+    <html lang="en" className={`${inter.variable} ${lilita.variable}`}>
+      <body className="antialiased">
+        <QueryProvider>
+          <TooltipProvider delayDuration={150}>
+            <div className="flex min-h-screen flex-col">
+              <SiteHeader />
+              <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">{children}</main>
+              <SiteFooter />
+            </div>
+          </TooltipProvider>
+        </QueryProvider>
       </body>
     </html>
   );

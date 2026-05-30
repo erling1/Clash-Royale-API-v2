@@ -6,7 +6,7 @@ Output layout (relative to project root):
 
 Tables produced (one parquet per run):
     pol_rankings, battles, battle_participants,
-    battle_deck_cards, battle_support_cards, players
+    battle_deck_cards, battle_support_cards, players, cards
 
 Run manually:
     uv run python extract/extract.py
@@ -169,6 +169,25 @@ def fetch_battlelogs(session, tags: list[str]) -> dict:
     return out
 
 
+def fetch_cards(session) -> pd.DataFrame:
+    data = get(session, "/cards", params={"limit": 500})
+    rows = []
+    for c in data.get("items", []):
+        icons = c.get("iconUrls") or {}
+        rows.append({
+            "id": c.get("id"),
+            "name": c.get("name"),
+            "rarity": c.get("rarity"),
+            "elixirCost": c.get("elixirCost"),
+            "maxLevel": c.get("maxLevel"),
+            "maxEvolutionLevel": c.get("maxEvolutionLevel"),
+            "iconUrls_medium": icons.get("medium"),
+            "iconUrls_heroMedium": icons.get("heroMedium"),
+            "iconUrls_evolutionMedium": icons.get("evolutionMedium"),
+        })
+    return pd.DataFrame(rows)
+
+
 def fetch_players(session, tags: list[str]) -> pd.DataFrame:
     scalar_keep = [
         "tag", "name", "expLevel", "trophies", "bestTrophies", "wins", "losses",
@@ -321,6 +340,9 @@ def main():
 
     players_df = fetch_players(session, tags)
     write_parquet(players_df, "players")
+
+    cards_df = fetch_cards(session)
+    write_parquet(cards_df, "cards")
 
     logger.info("done")
 

@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPlayer, listBattles } from "@/lib/api";
-import { Panel } from "@/components/panel";
-import { fmtInt, fmtPct, displayTag, fmtDate } from "@/lib/format";
+import { api, ApiError } from "@/lib/api";
+import { PlayerBattlesTab } from "./battles-tab";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { fmtInt, fmtPct } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
 
 export default async function PlayerDetailPage({
   params,
@@ -10,127 +14,137 @@ export default async function PlayerDetailPage({
   params: Promise<{ tag: string }>;
 }) {
   const { tag } = await params;
-  const decoded = decodeURIComponent(tag);
+  const decodedTag = decodeURIComponent(tag);
 
-  const [player, battles] = await Promise.all([
-    getPlayer(decoded),
-    listBattles({ playerTag: decoded, limit: 30 }),
-  ]);
-
-  if (!player) notFound();
-
-  const winLoss = player.wins + player.losses;
-  const winRate = winLoss > 0 ? (player.wins / winLoss) * 100 : 0;
+  let player;
+  try {
+    player = await api.getPlayer(decodedTag);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
 
   return (
-    <div className="space-y-6">
-      <Panel title={player.player_name.toUpperCase()} folio="§ I.">
-        <div className="flex items-baseline gap-3 mb-4">
-          <span className="label-dim">{displayTag(player.player_tag)}</span>
-          {player.clan_tag && (
-            <span className="label-dim">
-              · clan <span className="text-[var(--color-fg)]">{displayTag(player.clan_tag)}</span>
-              {player.clan_role && <span> · {player.clan_role}</span>}
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-4 gap-6">
-          <Stat label="trophies" value={fmtInt(player.trophies)} />
-          <Stat label="best" value={fmtInt(player.best_trophies)} />
-          <Stat label="exp lvl" value={String(player.exp_level)} />
-          <Stat label="arena" value={`#${player.arena_id}`} />
-        </div>
-      </Panel>
+    <div className="space-y-8">
+      <Link href="/players" className="text-sm text-fg-muted hover:text-fg">
+        ← All players
+      </Link>
 
-      <Panel title="Ladder Record" folio="§ II.">
-        <div className="grid grid-cols-4 gap-6">
-          <Stat label="battles" value={fmtInt(player.battle_count)} />
-          <Stat label="wins" value={fmtInt(player.wins)} />
-          <Stat label="losses" value={fmtInt(player.losses)} />
-          <Stat
-            label="win rate"
-            value={player.win_rate != null ? fmtPct(player.win_rate * 100) : fmtPct(winRate)}
-          />
+      <header className="space-y-2">
+        <h1 className="font-display text-4xl tracking-wide text-fg text-glow-gold">
+          {player.player_name}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant="muted" className="font-mono">{player.player_tag}</Badge>
+          {player.clan_tag && <Badge variant="crystal">Clan {player.clan_tag}</Badge>}
+          {player.clan_role && <Badge variant="magic" className="capitalize">{player.clan_role}</Badge>}
+          <Badge variant="gold">Level {player.exp_level}</Badge>
         </div>
-      </Panel>
+      </header>
 
-      <Panel title="Challenge Record" folio="§ III.">
-        <div className="grid grid-cols-4 gap-6">
-          <Stat label="3-crown wins" value={fmtInt(player.three_crown_wins)} />
-          <Stat label="war day wins" value={fmtInt(player.war_day_wins)} />
-          <Stat label="challenge cards" value={fmtInt(player.challenge_cards_won)} />
-          <Stat label="challenge max" value={fmtInt(player.challenge_max_wins)} />
-        </div>
-      </Panel>
-
-      <Panel
-        title={`Recent Battles — ${battles.length}`}
-        folio="§ IV."
-        keybind="B"
-      >
-        {battles.length === 0 ? (
-          <div className="py-6 text-center text-[var(--color-fg-muted)] label-dim">
-            no battles returned for this tag
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left label-dim border-b border-[var(--color-rule)]">
-              <tr>
-                <th className="py-2 pr-4 font-normal">time</th>
-                <th className="py-2 pr-4 font-normal">mode</th>
-                <th className="py-2 pr-4 font-normal">arena</th>
-                <th className="py-2 pr-4 font-normal text-center">crowns</th>
-                <th className="py-2 pr-4 font-normal text-right">result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {battles.map((b) => {
-                const score = `${b.team_crowns}–${b.opponent_crowns}`;
-                const won = b.winner_side === "team";
-                return (
-                  <tr
-                    key={`${b.queried_player_tag}|${b.battle_time}`}
-                    className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
-                  >
-                    <td className="py-1.5 pr-4 text-[var(--color-fg-dim)]">
-                      {fmtDate(b.battle_time)}
-                    </td>
-                    <td className="py-1.5 pr-4">{b.battle_type}</td>
-                    <td className="py-1.5 pr-4 text-[var(--color-fg-dim)]">
-                      #{b.arena_id}
-                    </td>
-                    <td className="py-1.5 pr-4 text-center tabular-nums">{score}</td>
-                    <td
-                      className={`py-1.5 pr-4 text-right uppercase tracking-wider text-[10px] ${
-                        won
-                          ? "text-[var(--color-accent)]"
-                          : "text-[var(--color-alert)]"
-                      }`}
-                    >
-                      {won ? "win" : "loss"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </Panel>
-
-      <div>
-        <Link href="/players" className="label-dim hover:text-[var(--color-accent)]">
-          ← back to leaderboard
-        </Link>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Stat label="Trophies" value={fmtInt(player.trophies)} accent="gold" />
+        <Stat label="Best trophies" value={fmtInt(player.best_trophies)} />
+        <Stat label="Win rate" value={fmtPct(player.win_rate)} accent="crystal" />
+        <Stat label="Battles" value={fmtInt(player.battle_count)} />
+        <Stat label="Wins" value={fmtInt(player.wins)} />
+        <Stat label="Losses" value={fmtInt(player.losses)} />
+        <Stat label="3-crown wins" value={fmtInt(player.three_crown_wins)} />
+        <Stat label="Streak" value={fmtInt(player.current_win_lose_streak)} />
       </div>
+
+      <Tabs defaultValue="profile">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="battles">Battles</TabsTrigger>
+        </TabsList>
+        <TabsContent value="profile">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <DetailGroup
+              title="Donations"
+              items={[
+                ["Donations", fmtInt(player.donations)],
+                ["Received", fmtInt(player.donations_received)],
+                ["Total", fmtInt(player.total_donations)],
+                ["Clan cards collected", fmtInt(player.clan_cards_collected)],
+              ]}
+            />
+            <DetailGroup
+              title="Tournaments & challenges"
+              items={[
+                ["Challenge cards won", fmtInt(player.challenge_cards_won)],
+                ["Challenge max wins", fmtInt(player.challenge_max_wins)],
+                ["Tournament cards", fmtInt(player.tournament_cards_won)],
+                ["Tournament battles", fmtInt(player.tournament_battle_count)],
+              ]}
+            />
+            <DetailGroup
+              title="Progression"
+              items={[
+                ["XP points", fmtInt(player.exp_points)],
+                ["Total XP", fmtInt(player.total_exp_points)],
+                ["Star points", fmtInt(player.star_points)],
+                ["War day wins", fmtInt(player.war_day_wins)],
+              ]}
+            />
+            <DetailGroup
+              title="Meta"
+              items={[
+                ["Arena ID", String(player.arena_id)],
+                ["Extracted", player.extracted_date],
+                [
+                  "Legacy trophy road",
+                  player.legacy_trophy_road_high_score === null
+                    ? "—"
+                    : fmtInt(player.legacy_trophy_road_high_score),
+                ],
+              ]}
+            />
+          </div>
+        </TabsContent>
+        <TabsContent value="battles">
+          <PlayerBattlesTab playerTag={player.player_tag} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: "gold" | "crystal";
+}) {
+  const tone =
+    accent === "gold"
+      ? "text-gold text-glow-gold"
+      : accent === "crystal"
+        ? "text-crystal-bright text-glow-crystal"
+        : "text-fg";
   return (
-    <div>
-      <div className="label-dim">{label}</div>
-      <div className="mt-1 text-[var(--text-lg)] tabular-nums">{value}</div>
+    <div className="panel px-4 py-3">
+      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
+      <div className={`mt-1 font-display text-2xl ${tone}`}>{value}</div>
+    </div>
+  );
+}
+
+function DetailGroup({ title, items }: { title: string; items: [string, string][] }) {
+  return (
+    <div className="panel p-4">
+      <h3 className="font-display text-lg text-fg mb-3">{title}</h3>
+      <dl className="space-y-1.5 text-sm">
+        {items.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-3">
+            <dt className="text-fg-muted">{k}</dt>
+            <dd className="tabular-nums text-fg">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

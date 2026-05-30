@@ -1,176 +1,155 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCard, getCardMeta, listCardPairs } from "@/lib/api";
-import { Panel } from "@/components/panel";
-import { MockBanner } from "@/components/mock-banner";
-import { fmtInt, fmtPct } from "@/lib/format";
+import { api, ApiError } from "@/lib/api";
+import { CardImage } from "@/components/card-image";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { fmtFloat, fmtInt, fmtPct, rarityClass } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
 
 export default async function CardDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const cardId = Number(id);
-  if (!Number.isFinite(cardId)) notFound();
+  const { id: idStr } = await params;
+  const id = Number(idStr);
+  if (!Number.isFinite(id)) notFound();
 
-  const [card, meta, pairs] = await Promise.all([
-    getCard(cardId),
-    getCardMeta(cardId),
-    listCardPairs({ cardId, limit: 10 }),
-  ]);
-  if (!card) notFound();
+  let card, meta, pairs, allCards;
+  try {
+    [card, meta, pairs, allCards] = await Promise.all([
+      api.getCard(id),
+      api.getCardMeta(id).catch(() => null),
+      api.listCardPairs({ card_id: id, limit: 25 }),
+      api.listCards(),
+    ]);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
 
-  // Partner = the other card in each pair. Co-occurrence ratio = pair_count / this_card_appearances.
-  const partners = pairs.map((p) => {
-    const isA = p.card_id_a === cardId;
-    return {
-      partner_id: isA ? p.card_id_b : p.card_id_a,
-      partner_name: isA ? p.card_name_b : p.card_name_a,
-      co_occurrence_count: p.co_occurrence_count,
-      co_occurrence_pct:
-        meta && meta.appearance_count > 0
-          ? (p.co_occurrence_count / meta.appearance_count) * 100
-          : null,
-      joint_win_rate: p.joint_win_rate,
-    };
-  });
+  const cardsById = new Map(allCards.map((c) => [c.card_id, c] as const));
 
   return (
-    <div className="space-y-6">
-      <Panel title={card.card_name.toUpperCase()} folio="§ I.">
-        <div className="grid grid-cols-4 gap-6">
-          <Stat label="rarity" value={card.rarity} />
-          <Stat label="elixir" value={card.elixir_cost?.toFixed(1) ?? "—"} />
-          <Stat label="max level" value={String(card.max_level)} />
-          <Stat
-            label="evo level"
-            value={card.max_evolution_level?.toString() ?? "—"}
-          />
-        </div>
-      </Panel>
+    <div className="space-y-8">
+      <Link href="/cards" className="text-sm text-fg-muted hover:text-fg">
+        ← All cards
+      </Link>
 
-      <Panel title="Usage" folio="§ II." keybind="U">
-        {meta == null ? (
-          <MockBanner endpoint={`GET /api/v1/card-meta/${card.card_id} (no data yet)`} />
-        ) : (
-          <>
-            <p className="label-dim mb-3">
-              source:{" "}
-              <span className="text-[var(--color-fg)]">
-                GET /api/v1/card-meta/{card.card_id}
-              </span>
-            </p>
-            <div className="grid grid-cols-4 gap-6">
-              <Stat
-                label="usage %"
-                value={meta.usage_pct != null ? fmtPct(meta.usage_pct * 100) : "—"}
-              />
-              <Stat
-                label="inclusion %"
-                value={
-                  meta.inclusion_rate != null ? fmtPct(meta.inclusion_rate * 100) : "—"
-                }
-              />
-              <Stat
-                label="win % when included"
-                value={meta.win_rate != null ? fmtPct(meta.win_rate * 100) : "—"}
-              />
-              <Stat label="appearances" value={fmtInt(meta.appearance_count)} />
-              <Stat
-                label="evolution %"
-                value={meta.evolution_pct != null ? fmtPct(meta.evolution_pct * 100) : "—"}
-              />
-              <Stat label="popularity rank" value={`#${meta.popularity_rank}`} />
-              <Stat
-                label="avg card level"
-                value={meta.avg_card_level != null ? meta.avg_card_level.toFixed(1) : "—"}
-              />
-              <Stat
-                label="W-L-D"
-                value={`${meta.win_count}-${meta.loss_count}-${meta.draw_count}`}
-              />
-            </div>
-          </>
-        )}
-      </Panel>
-
-      <Panel title="Top Partners" folio="§ III." keybind="P">
-        {partners.length === 0 ? (
-          <div className="py-6 text-center text-[var(--color-fg-muted)] label-dim">
-            no partner data for this card
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+        <CardImage
+          name={card.card_name}
+          rarity={card.rarity}
+          elixir={card.elixir_cost ?? null}
+          iconUrl={card.icon_url}
+          size={128}
+          className="rounded-xl"
+        />
+        <div className="flex-1">
+          <h1 className="font-display text-4xl tracking-wide text-fg text-glow-gold">
+            {card.card_name}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge variant="muted" className={`capitalize ${rarityClass(card.rarity)}`}>
+              {card.rarity}
+            </Badge>
+            {card.elixir_cost !== null && (
+              <Badge variant="magic">{card.elixir_cost} elixir</Badge>
+            )}
+            <Badge variant="muted">Max level {card.max_level}</Badge>
+            {card.max_evolution_level !== null && (
+              <Badge variant="crystal">Evo lv {card.max_evolution_level}</Badge>
+            )}
+            {meta && <Badge variant="gold">#{meta.popularity_rank} popular</Badge>}
           </div>
-        ) : (
-          <>
-            <p className="label-dim mb-3">
-              source:{" "}
-              <span className="text-[var(--color-fg)]">
-                GET /api/v1/card-pairs?card_id={card.card_id}
-              </span>
-            </p>
-            <table className="w-full text-sm">
-              <thead className="text-left label-dim border-b border-[var(--color-rule)]">
-                <tr>
-                  <th className="py-2 pr-4 font-normal">partner</th>
-                  <th className="py-2 pr-4 font-normal text-right">co-occurrence %</th>
-                  <th className="py-2 pr-4 font-normal text-right">co-occurrence n</th>
-                  <th className="py-2 pr-4 font-normal text-right">joint win %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {partners.map((p) => (
-                  <tr
-                    key={p.partner_id}
-                    className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
-                  >
-                    <td className="py-1.5 pr-4">
-                      <Link
-                        href={`/cards/${p.partner_id}`}
-                        className="hover:text-[var(--color-accent)]"
-                      >
-                        {p.partner_name ?? `#${p.partner_id}`}
-                      </Link>
-                    </td>
-                    <td className="py-1.5 pr-4 text-right tabular-nums">
-                      {p.co_occurrence_pct != null ? fmtPct(p.co_occurrence_pct) : "—"}
-                    </td>
-                    <td className="py-1.5 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
-                      {fmtInt(p.co_occurrence_count)}
-                    </td>
-                    <td className="py-1.5 pr-4 text-right tabular-nums">
-                      {p.joint_win_rate != null ? fmtPct(p.joint_win_rate * 100) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </Panel>
-
-      <div>
-        <Link
-          href="/cards"
-          className="label-dim hover:text-[var(--color-accent)]"
-        >
-          ← back to catalog
-        </Link>
+        </div>
       </div>
+
+      {meta && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Stat label="Win rate" value={fmtPct(meta.win_rate)} />
+          <Stat label="Usage" value={fmtPct(meta.usage_pct)} />
+          <Stat label="Appearances" value={fmtInt(meta.appearance_count)} />
+          <Stat label="Avg level" value={fmtFloat(meta.avg_card_level, 1)} />
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Best pairings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pairs.length === 0 ? (
+            <p className="text-sm text-fg-muted">No pairings recorded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Partner</TableHead>
+                  <TableHead className="text-right">Co-occur</TableHead>
+                  <TableHead className="text-right">Joint win rate</TableHead>
+                  <TableHead className="text-right">#Rank</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pairs.map((p) => {
+                  const partnerId = p.card_id_a === id ? p.card_id_b : p.card_id_a;
+                  const partnerName =
+                    p.card_id_a === id ? p.card_name_b : p.card_name_a;
+                  const partner = cardsById.get(partnerId);
+                  return (
+                    <TableRow key={`${p.card_id_a}-${p.card_id_b}`}>
+                      <TableCell>
+                        <Link
+                          href={`/cards/${partnerId}` as `/cards/${number}`}
+                          className="flex items-center gap-2 text-fg hover:text-gold-bright"
+                        >
+                          <CardImage
+                            name={partner?.card_name ?? `#${partnerId}`}
+                            rarity={partner?.rarity ?? null}
+                            elixir={partner?.elixir_cost ?? null}
+                            iconUrl={partner?.icon_url ?? null}
+                            size={36}
+                          />
+                          {partnerName ?? `#${partnerId}`}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtInt(p.co_occurrence_count)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtPct(p.joint_win_rate)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-fg-muted">
+                        #{p.popularity_rank}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function Stat({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div className="label-dim">{label}</div>
-      <div className="mt-1 text-[var(--text-lg)] tabular-nums">{value}</div>
+    <div className="panel px-4 py-3">
+      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
+      <div className="mt-1 font-display text-2xl text-fg text-glow-crystal">{value}</div>
     </div>
   );
 }

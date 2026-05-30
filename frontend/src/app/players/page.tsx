@@ -1,77 +1,63 @@
 import Link from "next/link";
-import { listRankings } from "@/lib/api";
-import { Panel } from "@/components/panel";
-import { fmtInt, displayTag } from "@/lib/format";
+import { api } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { fmtInt, fmtPct } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
 
 export default async function PlayersPage() {
-  const rankings = await listRankings(100);
+  const players = await api.listPlayers(1000);
+  const sorted = [...players].sort((a, b) => b.trophies - a.trophies);
 
   return (
     <div className="space-y-6">
-      <Panel title="Path of Legends — Leaderboard" folio="§ I." keybind="P">
-        <p className="label-dim mb-2">
-          source: <span className="text-[var(--color-fg)]">GET /api/v1/rankings?limit=100</span>
+      <div>
+        <h1 className="font-display text-4xl tracking-wide text-fg text-glow-gold">Players</h1>
+        <p className="mt-1 text-sm text-fg-muted">
+          {fmtInt(players.length)} tracked players · sorted by trophies.
         </p>
-        {rankings.length === 0 && (
-          <div className="py-8 text-center text-[var(--color-fg-muted)] label-dim">
-            No rankings returned — is the Rust API running on :3000? Is the
-            DuckDB warehouse populated?
-          </div>
-        )}
-      </Panel>
+      </div>
 
-      {rankings.length > 0 && (
-        <Panel title={`${fmtInt(rankings.length)} ranked players`} folio="§ II." noPadding>
-          <table className="w-full text-sm">
-            <thead className="text-left label-dim border-b border-[var(--color-rule)]">
-              <tr>
-                <th className="py-2 px-4 font-normal w-[56px]">#</th>
-                <th className="py-2 pr-4 font-normal">player</th>
-                <th className="py-2 pr-4 font-normal text-[var(--color-fg-muted)]">
-                  tag
-                </th>
-                <th className="py-2 pr-4 font-normal text-right">elo</th>
-                <th className="py-2 pr-4 font-normal text-right">lvl</th>
-                <th className="py-2 px-4 font-normal text-[var(--color-fg-muted)]">
-                  clan
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rankings.map((r) => (
-                <tr
-                  key={r.player_tag}
-                  className="border-b border-[var(--color-rule)] hover:bg-[var(--color-bg-hover)]"
-                >
-                  <td className="py-2 px-4 text-[var(--color-fg-dim)] tabular-nums">
-                    {r.player_rank.toString().padStart(3, "0")}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <Link
-                      href={`/players/${encodeURIComponent(r.player_tag)}`}
-                      className="hover:text-[var(--color-accent)]"
-                    >
-                      {r.player_name}
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-4 text-[var(--color-fg-muted)] text-xs">
-                    {displayTag(r.player_tag)}
-                  </td>
-                  <td className="py-2 pr-4 text-right tabular-nums">
-                    {fmtInt(r.elo_rating)}
-                  </td>
-                  <td className="py-2 pr-4 text-right tabular-nums text-[var(--color-fg-dim)]">
-                    {r.exp_level}
-                  </td>
-                  <td className="py-2 px-4 text-[var(--color-fg-muted)] text-xs">
-                    {r.clan_tag ? displayTag(r.clan_tag) : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {sorted.map((p) => (
+          <Link
+            key={p.player_tag}
+            href={`/players/${p.player_tag}` as `/players/${string}`}
+          >
+            <Card className="transition-all hover:panel-gold hover:-translate-y-0.5">
+              <CardHeader>
+                <CardTitle className="text-xl">{p.player_name}</CardTitle>
+                <p className="text-xs font-mono text-fg-dim">{p.player_tag}</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <Stat label="Trophies" value={fmtInt(p.trophies)} highlight />
+                  <Stat label="Best" value={fmtInt(p.best_trophies)} />
+                  <Stat label="Win rate" value={fmtPct(p.win_rate)} />
+                  <Stat label="Wins" value={fmtInt(p.wins)} />
+                  <Stat label="Losses" value={fmtInt(p.losses)} />
+                  <Stat label="Level" value={fmtInt(p.exp_level)} />
+                </div>
+                {p.clan_tag && (
+                  <div className="mt-3">
+                    <Badge variant="crystal">Clan {p.clan_tag}</Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div>
+      <div className="text-fg-dim">{label}</div>
+      <div className={highlight ? "font-display text-gold text-glow-gold" : "text-fg"}>{value}</div>
     </div>
   );
 }

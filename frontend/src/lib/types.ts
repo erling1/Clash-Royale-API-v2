@@ -1,187 +1,208 @@
+import { z } from "zod";
+
 /**
- * Wire types — mirror src/models/*.rs exactly.
- * If the Rust side changes a field, this is the file to update.
+ * Hand-mirrored from src/models/*.rs. Until the Rust API exposes an OpenAPI
+ * schema (utoipa), these schemas are the contract source of truth on the
+ * frontend side and must be kept in sync with the Rust structs.
  */
 
-export interface Card {
-  card_id: number;
-  card_name: string;
-  rarity: string;
-  elixir_cost: number | null;
-  max_level: number;
-  max_evolution_level: number | null;
-}
+export const ArenaSchema = z.object({
+  arena_id: z.number().int(),
+  arena_name: z.string(),
+});
+export type Arena = z.infer<typeof ArenaSchema>;
 
-export interface SupportCard {
-  card_id: number;
-  card_name: string;
-  rarity: string;
-  max_level: number;
-}
+export const CardSchema = z.object({
+  card_id: z.number().int(),
+  card_name: z.string(),
+  rarity: z.string(),
+  elixir_cost: z.number().nullable(),
+  max_level: z.number().int(),
+  max_evolution_level: z.number().nullable(),
+  card_variant: z.string(),
+  icon_url: z.string().nullable(),
+});
+export type Card = z.infer<typeof CardSchema>;
 
-export interface Arena {
-  arena_id: number;
-  arena_name: string;
-}
+export const CardMetaSchema = z.object({
+  card_id: z.number().int(),
+  card_name: z.string().nullable(),
+  rarity: z.string().nullable(),
+  elixir_cost: z.number().nullable(),
+  appearance_count: z.number().int(),
+  inclusion_rate: z.number().nullable(),
+  usage_pct: z.number().nullable(),
+  win_count: z.number().int(),
+  loss_count: z.number().int(),
+  draw_count: z.number().int(),
+  win_rate: z.number().nullable(),
+  evolution_count: z.number().int(),
+  evolution_pct: z.number().nullable(),
+  avg_card_level: z.number().nullable(),
+  popularity_rank: z.number().int(),
+});
+export type CardMeta = z.infer<typeof CardMetaSchema>;
 
-export interface GameMode {
-  game_mode_id: number;
-  game_mode_name: string;
-}
+export const CardPairSchema = z.object({
+  card_id_a: z.number().int(),
+  card_name_a: z.string().nullable(),
+  card_id_b: z.number().int(),
+  card_name_b: z.string().nullable(),
+  co_occurrence_count: z.number().int(),
+  win_count: z.number().int(),
+  loss_count: z.number().int(),
+  draw_count: z.number().int(),
+  joint_win_rate: z.number().nullable(),
+  popularity_rank: z.number().int(),
+});
+export type CardPair = z.infer<typeof CardPairSchema>;
 
-export interface Clan {
-  clan_tag: string;
-  clan_name: string;
-  clan_badge_id: number | null;
-}
+export const ClanSchema = z.object({
+  clan_tag: z.string(),
+  clan_name: z.string(),
+  clan_badge_id: z.number().nullable(),
+});
+export type Clan = z.infer<typeof ClanSchema>;
 
-export interface Player {
-  player_tag: string;
-  player_name: string;
-  exp_level: number;
-  trophies: number;
-  best_trophies: number;
-  wins: number;
-  losses: number;
-  battle_count: number;
-  three_crown_wins: number;
-  donations: number;
-  donations_received: number;
-  total_donations: number;
-  clan_cards_collected: number;
-  star_points: number;
-  exp_points: number;
-  total_exp_points: number;
-  war_day_wins: number;
-  challenge_cards_won: number;
-  challenge_max_wins: number;
-  tournament_cards_won: number;
-  tournament_battle_count: number;
-  current_win_lose_streak: number;
-  legacy_trophy_road_high_score: number | null;
-  clan_role: string | null;
-  clan_tag: string | null;
-  arena_id: number;
-  win_rate: number | null;
-  extracted_date: string;
-}
+export const DeckMetaSchema = z.object({
+  deck_hash: z.string(),
+  deck_label: z.string().nullable(),
+  card_ids: z.array(z.number().int()),
+  total_elixir_cost: z.number().nullable(),
+  avg_elixir_cost: z.number().nullable(),
+  appearance_count: z.number().int(),
+  win_count: z.number().int(),
+  loss_count: z.number().int(),
+  draw_count: z.number().int(),
+  win_rate: z.number().nullable(),
+  avg_trophy_change: z.number().nullable(),
+  avg_crowns: z.number().nullable(),
+  first_seen_at: z.string(),
+  last_seen_at: z.string(),
+  popularity_rank: z.number().int(),
+});
+export type DeckMeta = z.infer<typeof DeckMetaSchema>;
 
-export interface Battle {
-  queried_player_tag: string;
-  battle_time: string;
-  battle_type: string;
-  is_ladder_tournament: boolean;
-  is_hosted_match: boolean;
-  league_number: number | null;
-  deck_selection: string;
-  arena_id: number;
-  game_mode_id: number;
-  team_crowns: number;
-  opponent_crowns: number;
-  winner_side: string;
-  extracted_date: string;
-}
+export const GameModeSchema = z.object({
+  game_mode_id: z.number().int(),
+  game_mode_name: z.string(),
+});
+export type GameMode = z.infer<typeof GameModeSchema>;
 
-export interface BattleParticipant {
-  queried_player_tag: string;
-  battle_time: string;
-  participant_side: string;
-  slot: number;
-  player_tag: string;
-  player_name: string;
-  starting_trophies: number | null;
-  trophy_change: number | null;
-  crowns: number;
-  king_tower_hit_points: number;
-  princess_tower_1_hp: number | null;
-  princess_tower_2_hp: number | null;
-  total_tower_hp_remaining: number | null;
-  clan_tag: string | null;
-  global_rank: number | null;
-  elixir_leaked: number | null;
-  is_winner: boolean | null;
-  extracted_date: string;
-}
+export const PlayerSchema = z.object({
+  player_tag: z.string(),
+  player_name: z.string(),
+  exp_level: z.number().int(),
+  trophies: z.number().int(),
+  best_trophies: z.number().int(),
+  wins: z.number().int(),
+  losses: z.number().int(),
+  battle_count: z.number().int(),
+  three_crown_wins: z.number().int(),
+  donations: z.number().int(),
+  donations_received: z.number().int(),
+  total_donations: z.number().int(),
+  clan_cards_collected: z.number().int(),
+  star_points: z.number().int(),
+  exp_points: z.number().int(),
+  total_exp_points: z.number().int(),
+  war_day_wins: z.number().int(),
+  challenge_cards_won: z.number().int(),
+  challenge_max_wins: z.number().int(),
+  tournament_cards_won: z.number().int(),
+  tournament_battle_count: z.number().int(),
+  current_win_lose_streak: z.number().int(),
+  legacy_trophy_road_high_score: z.number().nullable(),
+  clan_role: z.string().nullable(),
+  clan_tag: z.string().nullable(),
+  arena_id: z.number().int(),
+  win_rate: z.number().nullable(),
+  extracted_date: z.string(),
+});
+export type Player = z.infer<typeof PlayerSchema>;
 
-export interface BattleDeckCard {
-  queried_player_tag: string;
-  battle_time: string;
-  participant_side: string;
-  slot: number;
-  deck_slot: number;
-  card_id: number;
-  card_level: number;
-  star_level: number | null;
-  evolution_level: number | null;
-  extracted_date: string;
-}
+export const PolRankingSchema = z.object({
+  season_id: z.string(),
+  player_rank: z.number().int(),
+  player_tag: z.string(),
+  player_name: z.string(),
+  exp_level: z.number().int(),
+  elo_rating: z.number().int(),
+  clan_tag: z.string().nullable(),
+  extracted_date: z.string(),
+});
+export type PolRanking = z.infer<typeof PolRankingSchema>;
 
-export interface BattleSupportCard {
-  queried_player_tag: string;
-  battle_time: string;
-  participant_side: string;
-  slot: number;
-  support_slot: number;
-  card_id: number;
-  card_level: number;
-  extracted_date: string;
-}
+export const SupportCardSchema = z.object({
+  card_id: z.number().int(),
+  card_name: z.string(),
+  rarity: z.string(),
+  max_level: z.number().int(),
+});
+export type SupportCard = z.infer<typeof SupportCardSchema>;
 
-export interface PolRanking {
-  season_id: string;
-  player_rank: number;
-  player_tag: string;
-  player_name: string;
-  exp_level: number;
-  elo_rating: number;
-  clan_tag: string | null;
-  extracted_date: string;
-}
+export const BattleSchema = z.object({
+  queried_player_tag: z.string(),
+  battle_time: z.string(),
+  battle_type: z.string(),
+  is_ladder_tournament: z.boolean(),
+  is_hosted_match: z.boolean(),
+  league_number: z.number().int().nullable(),
+  deck_selection: z.string(),
+  arena_id: z.number().int(),
+  game_mode_id: z.number().int(),
+  team_crowns: z.number().int(),
+  opponent_crowns: z.number().int(),
+  winner_side: z.string(),
+  extracted_date: z.string(),
+});
+export type Battle = z.infer<typeof BattleSchema>;
 
-export interface DeckMeta {
-  deck_hash: string;
-  deck_label: string | null;
-  total_elixir_cost: number | null;
-  avg_elixir_cost: number | null;
-  appearance_count: number;
-  win_count: number;
-  loss_count: number;
-  draw_count: number;
-  win_rate: number | null;
-  avg_trophy_change: number | null;
-  avg_crowns: number | null;
-  first_seen_at: string;
-  last_seen_at: string;
-  popularity_rank: number;
-}
+export const BattleParticipantSchema = z.object({
+  queried_player_tag: z.string(),
+  battle_time: z.string(),
+  participant_side: z.string(),
+  slot: z.number().int(),
+  player_tag: z.string(),
+  player_name: z.string(),
+  starting_trophies: z.number().nullable(),
+  trophy_change: z.number().nullable(),
+  crowns: z.number().int(),
+  king_tower_hit_points: z.number().int(),
+  princess_tower_1_hp: z.number().nullable(),
+  princess_tower_2_hp: z.number().nullable(),
+  total_tower_hp_remaining: z.number().nullable(),
+  clan_tag: z.string().nullable(),
+  global_rank: z.number().nullable(),
+  elixir_leaked: z.number().nullable(),
+  is_winner: z.boolean().nullable(),
+  extracted_date: z.string(),
+});
+export type BattleParticipant = z.infer<typeof BattleParticipantSchema>;
 
-export interface CardMeta {
-  card_id: number;
-  card_name: string | null;
-  rarity: string | null;
-  elixir_cost: number | null;
-  appearance_count: number;
-  inclusion_rate: number | null;
-  usage_pct: number | null;
-  win_count: number;
-  loss_count: number;
-  draw_count: number;
-  win_rate: number | null;
-  evolution_count: number;
-  evolution_pct: number | null;
-  avg_card_level: number | null;
-  popularity_rank: number;
-}
+export const BattleDeckCardSchema = z.object({
+  queried_player_tag: z.string(),
+  battle_time: z.string(),
+  participant_side: z.string(),
+  slot: z.number().int(),
+  deck_slot: z.number().int(),
+  card_id: z.number().int(),
+  card_level: z.number().int(),
+  star_level: z.number().nullable(),
+  evolution_level: z.number().nullable(),
+  card_variant: z.string(),
+  extracted_date: z.string(),
+});
+export type BattleDeckCard = z.infer<typeof BattleDeckCardSchema>;
 
-export interface CardPair {
-  card_id_a: number;
-  card_name_a: string | null;
-  card_id_b: number;
-  card_name_b: string | null;
-  co_occurrence_count: number;
-  win_count: number;
-  loss_count: number;
-  draw_count: number;
-  joint_win_rate: number | null;
-  popularity_rank: number;
-}
+export const BattleSupportCardSchema = z.object({
+  queried_player_tag: z.string(),
+  battle_time: z.string(),
+  participant_side: z.string(),
+  slot: z.number().int(),
+  support_slot: z.number().int(),
+  card_id: z.number().int(),
+  card_level: z.number().int(),
+  extracted_date: z.string(),
+});
+export type BattleSupportCard = z.infer<typeof BattleSupportCardSchema>;
