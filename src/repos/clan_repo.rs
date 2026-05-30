@@ -12,12 +12,12 @@ impl ClanRepo {
         Self { pool }
     }
 
-    pub async fn list(&self) -> Result<Vec<Clan>, AppError> {
-        let sql = format!("SELECT {} FROM marts.dim_clans", Clan::COLUMNS);
+    pub async fn list(&self, limit: i64) -> Result<Vec<Clan>, AppError> {
+        let sql = format!("SELECT {} FROM marts.dim_clans LIMIT ?", Clan::COLUMNS);
 
         let clans = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map([], Clan::from_row)?;
+            let rows = stmt.query_map([limit], Clan::from_row)?;
             rows.collect::<duckdb::Result<Vec<Clan>>>()
         }).await?;
 

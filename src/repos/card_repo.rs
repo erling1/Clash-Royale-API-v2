@@ -13,7 +13,10 @@ impl CardRepo {
     }
 
     pub async fn list(&self) -> Result<Vec<Card>, AppError> {
-        let sql = format!("SELECT {} FROM marts.dim_cards", Card::COLUMNS);
+        let sql = format!(
+            "SELECT {} FROM marts.dim_cards WHERE card_variant = 'base'",
+            Card::COLUMNS
+        );
 
         let cards = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
@@ -26,7 +29,7 @@ impl CardRepo {
 
     pub async fn get(&self, id: i64) -> Result<Card, AppError> {
         let sql = format!(
-            "SELECT {} FROM marts.dim_cards WHERE card_id = ?",
+            "SELECT {} FROM marts.dim_cards WHERE card_id = ? AND card_variant = 'base'",
             Card::COLUMNS
         );
 

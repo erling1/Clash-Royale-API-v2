@@ -31,8 +31,11 @@ impl ArenaRepo {
         );
 
         let arena = self.pool.conn(move |conn| {
+            
             let mut stmt = conn.prepare_cached(&sql)?;
+
             stmt.query_row([id], Arena::from_row)
+
         }).await;
 
         match arena {
