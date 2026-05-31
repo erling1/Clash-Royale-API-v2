@@ -6,6 +6,7 @@ pub mod cards;
 pub mod clans;
 pub mod decks;
 pub mod game_modes;
+pub mod matchups;
 pub mod players;
 pub mod rankings;
 pub mod support_cards;
@@ -25,6 +26,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(decks::list_decks)
             .service(decks::count_decks)
             .service(decks::get_deck)
+            .service(matchups::list_matchups)
+            .service(matchups::get_deck_matchups)
             .service(game_modes::list_game_modes)
             .service(game_modes::get_game_mode)
             .service(support_cards::list_support_cards)
