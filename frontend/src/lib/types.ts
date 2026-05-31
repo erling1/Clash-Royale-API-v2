@@ -19,8 +19,11 @@ export const CardSchema = z.object({
   elixir_cost: z.number().nullable(),
   max_level: z.number().int(),
   max_evolution_level: z.number().nullable(),
-  card_variant: z.string(),
   icon_url: z.string().nullable(),
+  // Variant icons. nullish so the frontend keeps parsing before the backend
+  // change that pivots dim_cards is applied (they arrive once it ships).
+  icon_url_evolution: z.string().nullish(),
+  icon_url_hero: z.string().nullish(),
 });
 export type Card = z.infer<typeof CardSchema>;
 

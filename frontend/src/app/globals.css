@@ -1,43 +1,47 @@
 @import "tailwindcss";
 
 @theme {
-  /* Fantasy / card-game palette */
-  --color-bg: #0a0e1f;
-  --color-bg-elevated: #131a33;
-  --color-bg-panel: #1a2348;
-  --color-bg-panel-hover: #20295a;
-  --color-border: #2d3a6e;
-  --color-border-strong: #4a5fa8;
+  /* Light dashboard palette — token names preserved so components re-skin centrally. */
+  --color-bg: #eef1f6;             /* page background (cool light gray) */
+  --color-bg-elevated: #ffffff;    /* inputs / elevated surfaces */
+  --color-bg-panel: #ffffff;       /* cards */
+  --color-bg-panel-hover: #f3f6fb; /* hover surface */
+  --color-border: #e6e9f1;
+  --color-border-strong: #d2d8e6;
 
-  --color-royal: #2b3a82;
-  --color-royal-bright: #4a5fc7;
-  --color-purple: #6b4ec9;
-  --color-purple-bright: #9b7ef0;
+  /* Brand blue */
+  --color-royal: #2563eb;
+  --color-royal-bright: #3b82f6;
+  --color-purple: #7c5cf0;
+  --color-purple-bright: #9b7ef5;
 
-  --color-gold: #f5c948;
-  --color-gold-bright: #ffd960;
-  --color-gold-dark: #b88a1a;
+  /* Trophy gold */
+  --color-gold: #f3b13b;
+  --color-gold-bright: #ffc859;
+  --color-gold-dark: #c98a12;
 
-  --color-crystal: #4fd8e8;
-  --color-crystal-bright: #7feefa;
-  --color-magic: #c084fc;
+  /* "crystal" repurposed as the brand blue accent (links, focus rings, wordmark) */
+  --color-crystal: #2f6fed;
+  --color-crystal-bright: #2f6fed;
+  --color-magic: #8b5cf6;
 
-  --color-fg: #f5f3ed;
-  --color-fg-muted: #a8b0cf;
-  --color-fg-dim: #6c7499;
+  /* Text */
+  --color-fg: #1b2433;       /* near-black slate */
+  --color-fg-muted: #647084; /* secondary */
+  --color-fg-dim: #9aa3b4;   /* tertiary */
 
-  --color-success: #4ade80;
-  --color-danger: #f87171;
-  --color-warning: #fbbf24;
+  --color-success: #2faa4d;
+  --color-danger: #e5484d;
+  --color-warning: #f5a623;
 
-  /* Rarity colors (Clash Royale convention) */
-  --color-rarity-common: #d4d4d8;
+  /* Rarity colors (Clash Royale convention; common darkened for light bg) */
+  --color-rarity-common: #8a8f9a;
   --color-rarity-rare: #f59e0b;
   --color-rarity-epic: #a855f7;
   --color-rarity-legendary: #ec4899;
-  --color-rarity-champion: #fbbf24;
+  --color-rarity-champion: #eab308;
 
-  --font-display: "Lilita One", "Bangers", system-ui, sans-serif;
+  --font-display: "Inter", system-ui, -apple-system, sans-serif;
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 
   --radius-sm: 0.375rem;
@@ -48,14 +52,11 @@
 
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
-    background:
-      radial-gradient(ellipse at top left, color-mix(in srgb, var(--color-royal) 30%, transparent), transparent 60%),
-      radial-gradient(ellipse at bottom right, color-mix(in srgb, var(--color-purple) 25%, transparent), transparent 60%),
-      var(--color-bg);
+    background: var(--color-bg);
     color: var(--color-fg);
     font-family: var(--font-sans);
     min-height: 100vh;
@@ -63,33 +64,49 @@
 
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    letter-spacing: 0.01em;
+    font-weight: 800;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
+  /* Strong, tight headings to match the mockup wherever font-display is used. */
+  .font-display {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
   .panel {
-    background: linear-gradient(180deg, var(--color-bg-panel) 0%, var(--color-bg-elevated) 100%);
+    background: var(--color-bg-panel);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     box-shadow:
-      0 1px 0 color-mix(in srgb, white 6%, transparent) inset,
-      0 12px 32px -12px rgba(0, 0, 0, 0.6);
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 8px 24px -16px rgba(16, 24, 40, 0.12);
   }
 
+  /* Gold-tinted highlight (e.g. #1 leaderboard card). */
   .panel-gold {
-    border: 1px solid color-mix(in srgb, var(--color-gold) 50%, transparent);
+    background: linear-gradient(180deg, #fff9ec 0%, #fffdf7 100%);
+    border: 1px solid color-mix(in srgb, var(--color-gold) 45%, white);
     box-shadow:
-      0 1px 0 color-mix(in srgb, var(--color-gold) 30%, transparent) inset,
-      0 0 24px -6px color-mix(in srgb, var(--color-gold) 35%, transparent),
-      0 12px 32px -12px rgba(0, 0, 0, 0.7);
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 8px 24px -16px rgba(201, 138, 18, 0.25);
   }
 
-  .text-glow-gold {
-    text-shadow: 0 0 12px color-mix(in srgb, var(--color-gold) 60%, transparent);
+  /* Green-tinted highlight (e.g. Top ELO tile). */
+  .panel-accent {
+    background: linear-gradient(180deg, #eefaf0 0%, #f7fdf8 100%);
+    border: 1px solid color-mix(in srgb, var(--color-success) 40%, white);
+    border-radius: var(--radius-xl);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.04),
+      0 8px 24px -16px rgba(47, 170, 77, 0.25);
   }
 
+  /* Glow effects neutralized for the light theme (kept so existing classNames are no-ops). */
+  .text-glow-gold,
   .text-glow-crystal {
-    text-shadow: 0 0 12px color-mix(in srgb, var(--color-crystal) 70%, transparent);
+    text-shadow: none;
   }
 }

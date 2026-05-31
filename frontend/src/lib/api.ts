@@ -126,8 +126,20 @@ export const api = {
 
   // ---- Decks --------------------------------------------------------------
 
-  listDecks: (limit?: number, opts?: FetchOptions): Promise<DeckMeta[]> =>
-    getJSON(`/api/v1/decks${qs({ limit })}`, listSchema(DeckMetaSchema), opts),
+  listDecks: (
+    args?: { limit?: number; offset?: number },
+    opts?: FetchOptions,
+  ): Promise<DeckMeta[]> =>
+    getJSON(
+      `/api/v1/decks${qs({ limit: args?.limit, offset: args?.offset })}`,
+      listSchema(DeckMetaSchema),
+      opts,
+    ),
+
+  countDecks: (opts?: FetchOptions): Promise<number> =>
+    getJSON("/api/v1/decks/count", z.object({ count: z.number().int() }), opts).then(
+      (r) => r.count,
+    ),
 
   getDeck: (hash: string, opts?: FetchOptions): Promise<DeckMeta> =>
     getJSON(`/api/v1/decks/${encodeURIComponent(hash)}`, DeckMetaSchema, opts),

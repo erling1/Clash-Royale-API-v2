@@ -50,7 +50,6 @@ export default async function CardDetailPage({
         <CardImage
           name={card.card_name}
           rarity={card.rarity}
-          elixir={card.elixir_cost ?? null}
           iconUrl={card.icon_url}
           size={128}
           className="rounded-xl"
@@ -117,7 +116,6 @@ export default async function CardDetailPage({
                           <CardImage
                             name={partner?.card_name ?? `#${partnerId}`}
                             rarity={partner?.rarity ?? null}
-                            elixir={partner?.elixir_cost ?? null}
                             iconUrl={partner?.icon_url ?? null}
                             size={36}
                           />

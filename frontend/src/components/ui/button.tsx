@@ -9,13 +9,12 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-b from-royal-bright to-royal text-fg border border-border-strong shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_4px_12px_-2px_rgba(0,0,0,0.4)] hover:from-purple-bright hover:to-purple",
-        gold: "bg-gradient-to-b from-gold-bright to-gold text-bg border border-gold-dark shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_4px_16px_-4px_rgba(245,201,72,0.5)] hover:from-gold hover:to-gold-dark",
+          "bg-success text-white shadow-sm hover:brightness-95",
+        gold: "bg-gold text-[#3a2a06] shadow-sm hover:brightness-95",
         outline:
-          "border border-border-strong bg-bg-panel/40 text-fg hover:bg-bg-panel-hover",
+          "border border-border-strong bg-bg-panel text-fg shadow-sm hover:bg-bg-panel-hover",
         ghost: "text-fg-muted hover:bg-bg-panel-hover hover:text-fg",
-        danger:
-          "bg-gradient-to-b from-danger to-rose-700 text-fg border border-rose-800 hover:brightness-110",
+        danger: "bg-danger text-white shadow-sm hover:brightness-95",
       },
       size: {
         sm: "h-8 px-3 text-sm",

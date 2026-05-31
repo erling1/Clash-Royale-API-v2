@@ -1,53 +1,97 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  BarChart3,
+  Crown,
+  LayoutGrid,
+  Layers,
+  TrendingUp,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { fmtInt } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { TopCardsByWinrate, TopDecksByPopularity } from "./dashboard-charts";
+import type { PolRanking } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const [cards, decks, players, rankings] = await Promise.all([
     api.listCardMeta(1000),
-    api.listDecks(1000),
+    api.listDecks({ limit: 10 }),
     api.listPlayers(1000),
     api.listRankings({ limit: 5 }),
   ]);
 
   return (
-    <div className="space-y-10">
-      <section className="panel panel-gold relative overflow-hidden p-8 md:p-12">
-        <div className="relative z-10 max-w-2xl">
-          <Badge variant="crystal" className="mb-3">unofficial · community stats</Badge>
-          <h1 className="font-display text-5xl md:text-6xl tracking-wide text-fg text-glow-gold">
-            Arena Insights
-          </h1>
-          <p className="mt-4 text-fg-muted text-lg leading-relaxed">
-            A non-commercial fan dashboard for exploring battle, deck, and player data.
-            Browse the meta, dig into card synergies, and follow Path of Legends leaderboards.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/cards" className="panel px-5 py-2.5 font-display tracking-wide hover:panel-gold">
-              Browse cards →
-            </Link>
-            <Link href="/decks" className="panel px-5 py-2.5 font-display tracking-wide hover:panel-gold">
-              Top decks →
-            </Link>
-            <Link href="/rankings" className="panel px-5 py-2.5 font-display tracking-wide hover:panel-gold">
-              Leaderboard →
-            </Link>
+    <div className="space-y-8">
+      {/* Hero */}
+      <section className="panel relative overflow-hidden p-0">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="p-8 md:p-12">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold tracking-wide text-success">
+              <TrendingUp className="h-4 w-4" />
+              TRACK. ANALYZE. DOMINATE.
+            </div>
+            <h1 className="mt-4 font-display text-4xl leading-tight text-fg md:text-5xl">
+              Your source for
+              <br />
+              Arena <span className="text-crystal">Insights</span>
+            </h1>
+            <p className="mt-4 max-w-md text-base leading-relaxed text-fg-muted">
+              Real-time stats and data about the meta, decks, cards and players.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button asChild size="lg">
+                <Link href="/cards">
+                  <Layers className="h-4 w-4" />
+                  Browse Cards
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="text-crystal">
+                <Link href="/decks">
+                  <Crown className="h-4 w-4" />
+                  Top Decks
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="text-crystal">
+                <Link href="/rankings">
+                  <BarChart3 className="h-4 w-4" />
+                  Leaderboard
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* Decorative banner — drop a hero image in here when available. */}
+          <div className="relative min-h-[220px] overflow-hidden bg-gradient-to-br from-[#cfe6ff] via-[#bcd8fb] to-[#a9c9f7]">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Crown className="h-40 w-40 text-white/40" />
+            </div>
           </div>
         </div>
       </section>
 
+      {/* Stat tiles */}
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Tile label="Tracked cards" value={fmtInt(cards.length)} />
-        <Tile label="Tracked decks" value={fmtInt(decks.length)} />
-        <Tile label="Tracked players" value={fmtInt(players.length)} />
-        <Tile label="Top Elo" value={fmtInt(rankings[0]?.elo_rating ?? null)} accent="crystal" />
+        <StatTile icon={Layers} iconClass="bg-crystal/10 text-crystal" label="Tracked cards" value={fmtInt(cards.length)} />
+        <StatTile icon={LayoutGrid} iconClass="bg-success/10 text-success" label="Tracked decks" value={fmtInt(decks.length)} />
+        <StatTile icon={Users} iconClass="bg-purple/10 text-purple" label="Tracked players" value={fmtInt(players.length)} />
+        <StatTile
+          icon={Trophy}
+          iconClass="bg-gold/15 text-gold"
+          label="Top Elo"
+          value={fmtInt(rankings[0]?.elo_rating ?? null)}
+          accent
+          subtitle={rankings[0] ? "Rank #1" : undefined}
+        />
       </section>
 
+      {/* Charts */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -70,22 +114,24 @@ export default async function HomePage() {
         </Card>
       </section>
 
+      {/* Leaderboard */}
       <section>
-        <h2 className="font-display text-2xl tracking-wide text-fg mb-3">
-          Current leaderboard
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-display text-xl text-fg">
+            <Crown className="h-5 w-5 text-gold" />
+            CURRENT LEADERBOARD
+          </h2>
+          <Link
+            href="/rankings"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-success/40 px-3 py-1.5 text-sm font-medium text-success transition-colors hover:bg-success/10"
+          >
+            View full leaderboard
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {rankings.map((r) => (
-            <Link key={`${r.season_id}-${r.player_tag}`} href={`/players/${r.player_tag}` as `/players/${string}`}>
-              <div className="panel p-4 transition-all hover:panel-gold hover:-translate-y-0.5">
-                <Badge variant={r.player_rank <= 3 ? "gold" : "muted"}>#{r.player_rank}</Badge>
-                <div className="mt-2 truncate font-display text-lg text-fg">{r.player_name}</div>
-                <div className="text-xs text-fg-dim">{r.player_tag}</div>
-                <div className="mt-2 font-display text-xl text-crystal-bright text-glow-crystal">
-                  {fmtInt(r.elo_rating)} <span className="text-xs text-fg-muted">Elo</span>
-                </div>
-              </div>
-            </Link>
+          {rankings.map((r, i) => (
+            <LeaderCard key={`${r.season_id}-${r.player_tag}`} rank={r} index={i} />
           ))}
         </div>
       </section>
@@ -93,23 +139,77 @@ export default async function HomePage() {
   );
 }
 
-function Tile({
+function StatTile({
+  icon: Icon,
+  iconClass,
   label,
   value,
   accent,
+  subtitle,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
+  iconClass: string;
   label: string;
   value: string;
-  accent?: "crystal";
+  accent?: boolean;
+  subtitle?: string;
 }) {
-  const tone =
-    accent === "crystal"
-      ? "text-crystal-bright text-glow-crystal"
-      : "text-gold text-glow-gold";
   return (
-    <div className="panel p-4">
-      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
-      <div className={`mt-1 font-display text-3xl ${tone}`}>{value}</div>
+    <div className={cn("p-5", accent ? "panel-accent" : "panel")}>
+      <div className="flex items-center gap-3">
+        <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", iconClass)}>
+          <Icon className="h-6 w-6" />
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+          {label}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "mt-3 font-display text-3xl",
+          accent ? "text-success" : "text-fg",
+        )}
+      >
+        {value}
+      </div>
+      {subtitle && <div className="mt-1 text-xs text-fg-muted">{subtitle}</div>}
+    </div>
+  );
+}
+
+const RANK_BADGE = ["bg-gold", "bg-fg-dim", "bg-[#cd7f32]"] as const;
+
+function initials(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  return trimmed.slice(0, 2).toUpperCase();
+}
+
+function LeaderCard({ rank, index }: { rank: PolRanking; index: number }) {
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col items-center rounded-xl p-5 text-center",
+        index === 0 ? "panel-gold" : "panel",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute left-3 top-3 flex h-6 w-7 items-center justify-center rounded-md text-xs font-bold text-white",
+          RANK_BADGE[index] ?? "bg-royal",
+        )}
+      >
+        {rank.player_rank}
+      </span>
+      <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-royal-bright to-purple font-display text-xl text-white ring-2 ring-bg-panel">
+        {initials(rank.player_name)}
+      </span>
+      <div className="mt-3 max-w-full truncate font-display text-fg">{rank.player_name}</div>
+      <div className="text-xs text-fg-dim">{rank.player_tag}</div>
+      <div className="mt-2 flex items-center gap-1.5 font-display text-xl text-success">
+        <Trophy className="h-4 w-4 text-gold" />
+        {fmtInt(rank.elo_rating)}
+      </div>
     </div>
   );
 }

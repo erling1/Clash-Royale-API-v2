@@ -45,7 +45,6 @@ export default async function CardsPage() {
                 <CardImage
                   name={card.card_name}
                   rarity={card.rarity}
-                  elixir={card.elixir_cost ?? null}
                   iconUrl={card.icon_url}
                   size={64}
                 />
