@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { PlayerBattlesTab } from "./battles-tab";
 import { Badge } from "@/components/ui/badge";
+import { DataFreshness } from "@/components/data-freshness";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtInt, fmtPct } from "@/lib/format";
 
@@ -39,6 +40,7 @@ export default async function PlayerDetailPage({
           {player.clan_tag && <Badge variant="crystal">Clan {player.clan_tag}</Badge>}
           {player.clan_role && <Badge variant="magic" className="capitalize">{player.clan_role}</Badge>}
           <Badge variant="gold">Level {player.exp_level}</Badge>
+          <DataFreshness iso={player.extracted_date} />
         </div>
       </header>
 

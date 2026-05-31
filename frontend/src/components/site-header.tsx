@@ -3,8 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Crown, Home, Search, Bell, User } from "lucide-react";
+import { Crown, Home, Search, Bell, User, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CommandPalette } from "@/components/command-palette";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Href = "/" | "/cards" | "/decks" | "/players" | "/clans" | "/battles" | "/rankings";
 
@@ -24,10 +31,39 @@ const NAV: {
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const [searchOpen, setSearchOpen] = React.useState(false);
+
+  const isActive = (href: Href) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg-panel/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-6">
+        {/* Mobile nav */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="Open menu"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-bg-panel-hover hover:text-fg md:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[12rem]">
+            {NAV.map((item) => (
+              <DropdownMenuItem key={item.href} asChild>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "w-full cursor-pointer",
+                    isActive(item.href) && "text-success",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-royal-bright to-royal shadow-sm ring-1 ring-black/5 transition-transform group-hover:scale-105">
             <Crown className="h-5 w-5 text-gold-bright" />
@@ -42,8 +78,7 @@ export function SiteHeader() {
 
         <nav className="ml-2 hidden items-center gap-1 md:flex">
           {NAV.map((item) => {
-            const active =
-              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const active = isActive(item.href);
             const Icon = item.icon;
             return (
               <Link
@@ -67,9 +102,14 @@ export function SiteHeader() {
           <button
             type="button"
             aria-label="Search"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-bg-panel-hover hover:text-fg"
+            onClick={() => setSearchOpen(true)}
+            className="flex h-9 items-center gap-2 rounded-lg px-2 text-fg-muted transition-colors hover:bg-bg-panel-hover hover:text-fg sm:border sm:border-border sm:px-2.5"
           >
-            <Search className="h-5 w-5" />
+            <Search className="h-5 w-5 sm:h-4 sm:w-4" />
+            <span className="hidden text-xs text-fg-dim sm:inline">Search</span>
+            <kbd className="hidden rounded border border-border bg-bg-elevated px-1.5 text-[0.65rem] text-fg-dim sm:inline">
+              ⌘K
+            </kbd>
           </button>
           <button
             type="button"
@@ -86,6 +126,8 @@ export function SiteHeader() {
           </span>
         </div>
       </div>
+
+      <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

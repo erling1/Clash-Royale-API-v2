@@ -86,6 +86,19 @@ export const DeckMetaSchema = z.object({
 });
 export type DeckMeta = z.infer<typeof DeckMetaSchema>;
 
+export const DeckMatchupSchema = z.object({
+  deck_hash: z.string(),
+  deck_label: z.string().nullable(),
+  opponent_deck_hash: z.string(),
+  opponent_deck_label: z.string().nullable(),
+  matchup_count: z.number().int(),
+  win_count: z.number().int(),
+  loss_count: z.number().int(),
+  draw_count: z.number().int(),
+  win_rate: z.number().nullable(),
+});
+export type DeckMatchup = z.infer<typeof DeckMatchupSchema>;
+
 export const GameModeSchema = z.object({
   game_mode_id: z.number().int(),
   game_mode_name: z.string(),

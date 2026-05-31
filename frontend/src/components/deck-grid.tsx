@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { CardImage } from "@/components/card-image";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { rarityClass } from "@/lib/format";
 import type { Card } from "@/lib/types";
 
 /**
@@ -134,23 +136,42 @@ export function DeckGrid({
       />
     );
 
-    if (linkCards && card) {
+    // Unknown cards get no tooltip — nothing meaningful to show.
+    if (!card) {
       return (
-        <Link
-          key={slot.key}
-          href={`/cards/${slot.cardId}` as `/cards/${number}`}
-          className="block transition hover:brightness-110"
-          title={card.card_name}
-        >
+        <div key={slot.key} className="block">
           {icon}
-        </Link>
+        </div>
       );
     }
 
+    const trigger =
+      linkCards ? (
+        <Link
+          href={`/cards/${slot.cardId}` as `/cards/${number}`}
+          className="block transition hover:brightness-110"
+        >
+          {icon}
+        </Link>
+      ) : (
+        <span className="block">{icon}</span>
+      );
+
     return (
-      <div key={slot.key} className="block" title={card?.card_name}>
-        {icon}
-      </div>
+      <Tooltip key={slot.key}>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent>
+          <div className="font-display text-sm text-fg">{card.card_name}</div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className={cn("capitalize", rarityClass(card.rarity))}>
+              {card.rarity}
+            </span>
+            {card.elixir_cost !== null && (
+              <span className="text-fg-muted">{card.elixir_cost} elixir</span>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
     );
   };
 

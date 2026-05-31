@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Card, DeckMeta } from "@/lib/types";
@@ -33,10 +35,10 @@ type SortKey =
   | "avg_crowns"
   | "avg_trophy_change";
 
-type SortState = { key: SortKey; dir: "asc" | "desc" };
+type Dir = "asc" | "desc";
 
 // Direction applied when a column is first selected.
-const DEFAULT_DIR: Record<SortKey, "asc" | "desc"> = {
+const DEFAULT_DIR: Record<SortKey, Dir> = {
   popularity_rank: "asc",
   win_rate: "desc",
   avg_elixir_cost: "asc",
@@ -45,12 +47,10 @@ const DEFAULT_DIR: Record<SortKey, "asc" | "desc"> = {
   avg_trophy_change: "desc",
 };
 
+const SORT_KEYS = Object.keys(DEFAULT_DIR) as SortKey[];
+
 // Nulls always sort last, regardless of direction.
-const compareNullable = (
-  a: number | null,
-  b: number | null,
-  dir: "asc" | "desc",
-): number => {
+const compareNullable = (a: number | null, b: number | null, dir: Dir): number => {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
   if (b === null) return -1;
@@ -58,8 +58,44 @@ const compareNullable = (
 };
 
 export default function DecksPage() {
-  const [page, setPage] = useState(0);
-  const [sort, setSort] = useState<SortState>({ key: "popularity_rank", dir: "asc" });
+  return (
+    <Suspense fallback={<DeckTableSkeleton />}>
+      <DecksTable />
+    </Suspense>
+  );
+}
+
+function DecksTable() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // The URL query string is the single source of truth for sort + page, so
+  // views are shareable and the browser back button restores prior state.
+  const sortKey: SortKey = SORT_KEYS.includes(
+    searchParams.get("sort") as SortKey,
+  )
+    ? (searchParams.get("sort") as SortKey)
+    : "popularity_rank";
+  const dir: Dir = searchParams.get("dir") === "asc" ? "asc" : searchParams.get("dir") === "desc" ? "desc" : DEFAULT_DIR[sortKey];
+  const rawPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage - 1 : 0;
+
+  const setParams = (next: Partial<{ sort: SortKey; dir: Dir; page: number }>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.sort !== undefined) params.set("sort", next.sort);
+    if (next.dir !== undefined) params.set("dir", next.dir);
+    if (next.page !== undefined) params.set("page", String(next.page + 1));
+    router.replace(`${pathname}?${params.toString()}` as Route, { scroll: false });
+  };
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setParams({ dir: dir === "asc" ? "desc" : "asc", page: 0 });
+    } else {
+      setParams({ sort: key, dir: DEFAULT_DIR[key], page: 0 });
+    }
+  };
 
   const {
     data: allDecks,
@@ -90,27 +126,15 @@ export default function DecksPage() {
   const processed = useMemo<DeckMeta[]>(() => {
     const rows = allDecks ?? [];
     return [...rows].sort((a, b) => {
-      const primary = compareNullable(a[sort.key], b[sort.key], sort.dir);
+      const primary = compareNullable(a[sortKey], b[sortKey], dir);
       return primary !== 0 ? primary : a.popularity_rank - b.popularity_rank;
     });
-  }, [allDecks, sort]);
+  }, [allDecks, sortKey, dir]);
 
   const pageCount = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
-  const pageRows = processed.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-  const hasNext = page + 1 < pageCount;
-
-  // Return to page 1 whenever the sort changes.
-  useEffect(() => {
-    setPage(0);
-  }, [sort]);
-
-  const toggleSort = (key: SortKey) => {
-    setSort((s) =>
-      s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: DEFAULT_DIR[key] },
-    );
-  };
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = processed.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const hasNext = safePage + 1 < pageCount;
 
   const capped = (allDecks?.length ?? 0) >= FETCH_LIMIT;
 
@@ -134,13 +158,13 @@ export default function DecksPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <SortHead label="#" sortKey="popularity_rank" sort={sort} onSort={toggleSort} />
+                <SortHead label="#" sortKey="popularity_rank" activeKey={sortKey} dir={dir} onSort={toggleSort} />
                 <TableHead>Deck</TableHead>
-                <SortHead label="Avg elixir" sortKey="avg_elixir_cost" sort={sort} onSort={toggleSort} align="right" />
-                <SortHead label="Win rate" sortKey="win_rate" sort={sort} onSort={toggleSort} align="right" />
-                <SortHead label="Plays" sortKey="appearance_count" sort={sort} onSort={toggleSort} align="right" />
-                <SortHead label="Avg crowns" sortKey="avg_crowns" sort={sort} onSort={toggleSort} align="right" />
-                <SortHead label="Avg Δ trophies" sortKey="avg_trophy_change" sort={sort} onSort={toggleSort} align="right" />
+                <SortHead label="Avg elixir" sortKey="avg_elixir_cost" activeKey={sortKey} dir={dir} onSort={toggleSort} align="right" />
+                <SortHead label="Win rate" sortKey="win_rate" activeKey={sortKey} dir={dir} onSort={toggleSort} align="right" />
+                <SortHead label="Plays" sortKey="appearance_count" activeKey={sortKey} dir={dir} onSort={toggleSort} align="right" />
+                <SortHead label="Avg crowns" sortKey="avg_crowns" activeKey={sortKey} dir={dir} onSort={toggleSort} align="right" />
+                <SortHead label="Avg Δ trophies" sortKey="avg_trophy_change" activeKey={sortKey} dir={dir} onSort={toggleSort} align="right" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,12 +175,21 @@ export default function DecksPage() {
                 const td = deck.avg_trophy_change;
                 const tdTone = td === null ? "text-fg-dim" : td >= 0 ? "text-success" : "text-danger";
                 return (
-                  <TableRow key={deck.deck_hash}>
+                  <TableRow
+                    key={deck.deck_hash}
+                    onClick={() => router.push(`/decks/${deck.deck_hash}` as `/decks/${string}`)}
+                    className="cursor-pointer transition hover:bg-bg-panel-hover"
+                  >
                     <TableCell className="align-middle font-display text-fg-muted">
                       #{deck.popularity_rank}
                     </TableCell>
                     <TableCell className="py-3">
-                      <DeckGrid cardIds={deck.card_ids} cardsById={cardsById} size={72} />
+                      <DeckGrid
+                        cardIds={deck.card_ids}
+                        cardsById={cardsById}
+                        size={72}
+                        linkCards={false}
+                      />
                     </TableCell>
                     <TableCell className="text-right align-middle tabular-nums">
                       {fmtFloat(deck.avg_elixir_cost, 1)}
@@ -181,21 +214,21 @@ export default function DecksPage() {
 
           <div className="flex items-center justify-between text-xs text-fg-muted">
             <div>
-              Page {page + 1} of {pageCount}
+              Page {safePage + 1} of {pageCount}
             </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
+                onClick={() => setParams({ page: Math.max(0, safePage - 1) })}
+                disabled={safePage === 0}
               >
                 Previous
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setParams({ page: safePage + 1 })}
                 disabled={!hasNext}
               >
                 Next
@@ -211,18 +244,20 @@ export default function DecksPage() {
 function SortHead({
   label,
   sortKey,
-  sort,
+  activeKey,
+  dir,
   onSort,
   align = "left",
 }: {
   label: string;
   sortKey: SortKey;
-  sort: SortState;
+  activeKey: SortKey;
+  dir: Dir;
   onSort: (k: SortKey) => void;
   align?: "left" | "right";
 }) {
-  const active = sort.key === sortKey;
-  const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+  const active = activeKey === sortKey;
+  const arrow = active ? (dir === "asc" ? "▲" : "▼") : "";
   return (
     <TableHead className={align === "right" ? "text-right" : undefined}>
       <button

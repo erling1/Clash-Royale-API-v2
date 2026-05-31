@@ -10,6 +10,7 @@ import {
   CardPairSchema,
   CardSchema,
   ClanSchema,
+  DeckMatchupSchema,
   DeckMetaSchema,
   GameModeSchema,
   PlayerSchema,
@@ -24,6 +25,7 @@ import {
   type CardMeta,
   type CardPair,
   type Clan,
+  type DeckMatchup,
   type DeckMeta,
   type GameMode,
   type Player,
@@ -143,6 +145,25 @@ export const api = {
 
   getDeck: (hash: string, opts?: FetchOptions): Promise<DeckMeta> =>
     getJSON(`/api/v1/decks/${encodeURIComponent(hash)}`, DeckMetaSchema, opts),
+
+  // ---- Matchups -----------------------------------------------------------
+
+  listMatchups: (
+    args?: { limit?: number; offset?: number },
+    opts?: FetchOptions,
+  ): Promise<DeckMatchup[]> =>
+    getJSON(
+      `/api/v1/matchups${qs({ limit: args?.limit, offset: args?.offset })}`,
+      listSchema(DeckMatchupSchema),
+      opts,
+    ),
+
+  getDeckMatchups: (hash: string, opts?: FetchOptions): Promise<DeckMatchup[]> =>
+    getJSON(
+      `/api/v1/matchups/${encodeURIComponent(hash)}`,
+      listSchema(DeckMatchupSchema),
+      opts,
+    ),
 
   // ---- Game modes ---------------------------------------------------------
 

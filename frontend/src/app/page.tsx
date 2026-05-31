@@ -187,10 +187,11 @@ function initials(name: string): string {
 
 function LeaderCard({ rank, index }: { rank: PolRanking; index: number }) {
   return (
-    <div
+    <Link
+      href={`/players/${rank.player_tag}` as `/players/${string}`}
       className={cn(
-        "relative flex flex-col items-center rounded-xl p-5 text-center",
-        index === 0 ? "panel-gold" : "panel",
+        "relative flex flex-col items-center rounded-xl p-5 text-center transition-all hover:-translate-y-0.5",
+        index === 0 ? "panel-gold" : "panel hover:panel-gold",
       )}
     >
       <span
@@ -210,6 +211,6 @@ function LeaderCard({ rank, index }: { rank: PolRanking; index: number }) {
         <Trophy className="h-4 w-4 text-gold" />
         {fmtInt(rank.elo_rating)}
       </div>
-    </div>
+    </Link>
   );
 }
