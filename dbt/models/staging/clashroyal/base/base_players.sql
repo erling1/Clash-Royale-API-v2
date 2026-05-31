@@ -1,35 +1,44 @@
-select
-    tag as player_tag,
-    name as player_name,
-    expLevel as exp_level,
-    trophies,
-    bestTrophies as best_trophies,
-    wins,
-    losses,
-    battleCount as battle_count,
-    threeCrownWins as three_crown_wins,
-    donations,
-    donationsReceived as donations_received,
-    totalDonations as total_donations,
-    clanCardsCollected as clan_cards_collected,
-    starPoints as star_points,
-    expPoints as exp_points,
-    totalExpPoints as total_exp_points,
-    warDayWins as war_day_wins,
-    challengeCardsWon as challenge_cards_won,
-    challengeMaxWins as challenge_max_wins,
-    tournamentCardsWon as tournament_cards_won,
-    tournamentBattleCount as tournament_battle_count,
-    currentWinLoseStreak as current_win_lose_streak,
-    legacyTrophyRoadHighScore as legacy_trophy_road_high_score,
-    role as clan_role,
-    clan_tag,
-    clan_name,
-    clan_badgeId as clan_badge_id,
-    arena_id,
-    arena_name,
-    cast(dt as date) as extracted_date
-from read_parquet(
-    'data/raw/players/**/*.parquet',
-    hive_partitioning = true
+with source as (
+    {{ clean(
+        source    = "read_parquet('data/raw/players/**/*.parquet', hive_partitioning = true)",
+        pks       = ['tag'],
+        order_col = 'dt'
+    ) }}
+),
+
+base as (
+    select
+        tag as player_tag,
+        name as player_name,
+        expLevel as exp_level,
+        trophies,
+        bestTrophies as best_trophies,
+        wins,
+        losses,
+        battleCount as battle_count,
+        threeCrownWins as three_crown_wins,
+        donations,
+        donationsReceived as donations_received,
+        totalDonations as total_donations,
+        clanCardsCollected as clan_cards_collected,
+        starPoints as star_points,
+        expPoints as exp_points,
+        totalExpPoints as total_exp_points,
+        warDayWins as war_day_wins,
+        challengeCardsWon as challenge_cards_won,
+        challengeMaxWins as challenge_max_wins,
+        tournamentCardsWon as tournament_cards_won,
+        tournamentBattleCount as tournament_battle_count,
+        currentWinLoseStreak as current_win_lose_streak,
+        legacyTrophyRoadHighScore as legacy_trophy_road_high_score,
+        role as clan_role,
+        clan_tag,
+        clan_name,
+        clan_badgeId as clan_badge_id,
+        arena_id,
+        arena_name,
+        cast(dt as date) as extracted_date
+    from source
 )
+
+select * from base
