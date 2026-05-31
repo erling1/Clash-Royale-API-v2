@@ -4,6 +4,7 @@ import { api, ApiError } from "@/lib/api";
 import { PlayerBattlesTab } from "./battles-tab";
 import { Badge } from "@/components/ui/badge";
 import { DataFreshness } from "@/components/data-freshness";
+import { FavoriteButton } from "@/components/favorite-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtInt, fmtPct } from "@/lib/format";
 
@@ -41,6 +42,14 @@ export default async function PlayerDetailPage({
           {player.clan_role && <Badge variant="magic" className="capitalize">{player.clan_role}</Badge>}
           <Badge variant="gold">Level {player.exp_level}</Badge>
           <DataFreshness iso={player.extracted_date} />
+          <FavoriteButton
+            fav={{
+              type: "player",
+              id: player.player_tag,
+              label: player.player_name,
+              href: `/players/${player.player_tag}`,
+            }}
+          />
         </div>
       </header>
 

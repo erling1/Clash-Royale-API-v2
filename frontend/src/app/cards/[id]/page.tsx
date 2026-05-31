@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { CardImage } from "@/components/card-image";
+import { DeckGrid } from "@/components/deck-grid";
+import { FavoriteButton } from "@/components/favorite-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,13 +27,14 @@ export default async function CardDetailPage({
   const id = Number(idStr);
   if (!Number.isFinite(id)) notFound();
 
-  let card, meta, pairs, allCards;
+  let card, meta, pairs, allCards, allDecks;
   try {
-    [card, meta, pairs, allCards] = await Promise.all([
+    [card, meta, pairs, allCards, allDecks] = await Promise.all([
       api.getCard(id),
       api.getCardMeta(id).catch(() => null),
       api.listCardPairs({ card_id: id, limit: 25 }),
       api.listCards(),
+      api.listDecks({ limit: 1000 }),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
@@ -39,6 +42,13 @@ export default async function CardDetailPage({
   }
 
   const cardsById = new Map(allCards.map((c) => [c.card_id, c] as const));
+  // Most popular decks that run this card. Scoped to the top-1000 deck list we
+  // already fetch — a card in a deck ranked >1000 won't show. A dedicated
+  // /cards/{id}/decks endpoint would cover the full set (see notes).
+  const decksWithCard = allDecks
+    .filter((d) => d.card_ids.includes(id))
+    .sort((a, b) => a.popularity_rank - b.popularity_rank)
+    .slice(0, 12);
 
   return (
     <div className="space-y-8">
@@ -71,6 +81,17 @@ export default async function CardDetailPage({
             )}
             {meta && <Badge variant="gold">#{meta.popularity_rank} popular</Badge>}
           </div>
+          <div className="mt-3">
+            <FavoriteButton
+              fav={{
+                type: "card",
+                id: String(card.card_id),
+                label: card.card_name,
+                href: `/cards/${card.card_id}`,
+              }}
+              withLabel
+            />
+          </div>
         </div>
       </div>
 
@@ -81,6 +102,35 @@ export default async function CardDetailPage({
           <Stat label="Appearances" value={fmtInt(meta.appearance_count)} />
           <Stat label="Avg level" value={fmtFloat(meta.avg_card_level, 1)} />
         </div>
+      )}
+
+      {decksWithCard.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="font-display text-xl text-fg">Popular decks with this card</h2>
+            <p className="text-xs text-fg-muted">Among the top 1,000 tracked decks.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {decksWithCard.map((d) => {
+              const wr = d.win_rate;
+              const wrVariant =
+                wr === null ? "muted" : wr >= 0.55 ? "success" : wr < 0.45 ? "danger" : "muted";
+              return (
+                <Link
+                  key={d.deck_hash}
+                  href={`/decks/${d.deck_hash}` as `/decks/${string}`}
+                  className="panel flex items-center justify-between gap-3 p-3 transition hover:panel-gold hover:-translate-y-0.5"
+                >
+                  <DeckGrid cardIds={d.card_ids} cardsById={cardsById} size={34} linkCards={false} />
+                  <div className="shrink-0 text-right text-xs">
+                    <div className="text-fg-muted">#{d.popularity_rank}</div>
+                    <Badge variant={wrVariant}>{fmtPct(wr)}</Badge>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       <Card>

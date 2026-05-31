@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Crown, Home, Search, Bell, User, Menu } from "lucide-react";
+import { Crown, Home, Search, Bell, User, Menu, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/command-palette";
 import {
@@ -13,7 +13,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Href = "/" | "/cards" | "/decks" | "/players" | "/clans" | "/battles" | "/rankings";
+type Href =
+  | "/"
+  | "/cards"
+  | "/decks"
+  | "/builder"
+  | "/players"
+  | "/clans"
+  | "/battles"
+  | "/rankings"
+  | "/saved";
 
 const NAV: {
   label: string;
@@ -23,10 +32,12 @@ const NAV: {
   { label: "Overview", href: "/", icon: Home },
   { label: "Cards", href: "/cards" },
   { label: "Decks", href: "/decks" },
+  { label: "Builder", href: "/builder" },
   { label: "Players", href: "/players" },
   { label: "Clans", href: "/clans" },
   { label: "Battles", href: "/battles" },
   { label: "Rankings", href: "/rankings" },
+  { label: "Saved", href: "/saved", icon: Star },
 ];
 
 export function SiteHeader() {

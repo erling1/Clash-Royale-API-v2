@@ -58,7 +58,7 @@ export function DeckActions({
         ) : (
           <Link2 className="h-4 w-4" />
         )}
-        {copied === "deck" ? "Copied" : "Copy deck link"}
+        {copied === "deck" ? "Copied" : "Copy deck"}
       </Button>
       <Button variant="outline" size="sm" onClick={() => copy("page", pageLink)}>
         {copied === "page" ? (
@@ -66,7 +66,7 @@ export function DeckActions({
         ) : (
           <Link2 className="h-4 w-4" />
         )}
-        {copied === "page" ? "Copied" : "Copy page link"}
+        {copied === "page" ? "Copied" : "Copy link"}
       </Button>
     </div>
   );
