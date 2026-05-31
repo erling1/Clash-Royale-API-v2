@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   BarChart3,
@@ -67,11 +68,25 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Decorative banner — drop a hero image in here when available. */}
-          <div className="relative min-h-[220px] overflow-hidden bg-gradient-to-br from-[#cfe6ff] via-[#bcd8fb] to-[#a9c9f7]">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Crown className="h-40 w-40 text-white/40" />
-            </div>
+          <div className="relative min-h-[220px] overflow-hidden">
+            <Image
+              src="/hero-banner.jpg"
+              alt="Clash Royale heroes charging into battle"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover"
+              priority
+              // Fade the left (and a touch of the bottom) edge into the white
+              // hero panel so the art blends in instead of sitting in a box.
+              style={{
+                maskImage:
+                  "linear-gradient(to right, transparent 0%, black 38%), linear-gradient(to top, transparent 0%, black 18%)",
+                maskComposite: "intersect",
+                WebkitMaskImage:
+                  "linear-gradient(to right, transparent 0%, black 38%), linear-gradient(to top, transparent 0%, black 18%)",
+                WebkitMaskComposite: "source-in",
+              }}
+            />
           </div>
         </div>
       </section>

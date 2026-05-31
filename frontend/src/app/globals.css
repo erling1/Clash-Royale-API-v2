@@ -56,10 +56,19 @@
   }
 
   body {
-    background: var(--color-bg);
     color: var(--color-fg);
     font-family: var(--font-sans);
     min-height: 100vh;
+    /* Arena landscape behind the dashboard. Light wash kept gentle so the
+       artwork stays clearly visible; opaque white panels carry the content. */
+    background-color: var(--color-bg);
+    background-image:
+      linear-gradient(rgba(238, 241, 246, 0.3), rgba(238, 241, 246, 0.42)),
+      url("/arena-bg.jpg");
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-size: cover;
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4 {
