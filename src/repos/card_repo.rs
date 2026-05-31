@@ -2,6 +2,22 @@ use async_duckdb::Pool;
 use crate::models::{Card, CardMeta, CardPair};
 use crate::error::AppError;
 
+/// Collapses the long (card_id × variant) rows of `dim_cards` into one wide row
+/// per card, exposing the base/evolution/hero icon URLs as columns.
+/// STOPGAP — see NOTES.md: this belongs in a proper wide `dim_cards` model.
+const CARD_PIVOT: &str = "
+    SELECT
+        card_id,
+        any_value(card_name)             AS card_name,
+        any_value(rarity)                AS rarity,
+        any_value(elixir_cost)           AS elixir_cost,
+        any_value(max_level)             AS max_level,
+        any_value(max_evolution_level)   AS max_evolution_level,
+        max(icon_url) FILTER (WHERE card_variant = 'base')      AS icon_url,
+        max(icon_url) FILTER (WHERE card_variant = 'evolution') AS icon_url_evolution,
+        max(icon_url) FILTER (WHERE card_variant = 'hero')      AS icon_url_hero
+    FROM marts.dim_cards";
+
 #[derive(Clone)]
 pub struct CardRepo {
     pool: Pool,
@@ -13,10 +29,7 @@ impl CardRepo {
     }
 
     pub async fn list(&self) -> Result<Vec<Card>, AppError> {
-        let sql = format!(
-            "SELECT {} FROM marts.dim_cards WHERE card_variant = 'base'",
-            Card::COLUMNS
-        );
+        let sql = format!("{CARD_PIVOT} GROUP BY card_id");
 
         let cards = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
@@ -28,10 +41,7 @@ impl CardRepo {
     }
 
     pub async fn get(&self, id: i64) -> Result<Card, AppError> {
-        let sql = format!(
-            "SELECT {} FROM marts.dim_cards WHERE card_id = ? AND card_variant = 'base'",
-            Card::COLUMNS
-        );
+        let sql = format!("{CARD_PIVOT} WHERE card_id = ? GROUP BY card_id");
 
         let card = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;

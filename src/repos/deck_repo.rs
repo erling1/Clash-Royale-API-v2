@@ -12,19 +12,28 @@ impl DeckRepo {
         Self { pool }
     }
 
-    pub async fn list(&self, limit: i64) -> Result<Vec<DeckMeta>, AppError> {
+    pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<DeckMeta>, AppError> {
         let sql = format!(
-            "SELECT {} FROM marts.fct_deck_meta ORDER BY popularity_rank ASC LIMIT ?",
+            "SELECT {} FROM marts.fct_deck_meta ORDER BY popularity_rank ASC LIMIT ? OFFSET ?",
             DeckMeta::COLUMNS
         );
 
         let decks = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map([limit], DeckMeta::from_row)?;
+            let rows = stmt.query_map(duckdb::params![limit, offset], DeckMeta::from_row)?;
             rows.collect::<duckdb::Result<Vec<DeckMeta>>>()
         }).await?;
 
         Ok(decks)
+    }
+
+    pub async fn count(&self) -> Result<i64, AppError> {
+        let n = self.pool.conn(|conn| {
+            let mut stmt = conn.prepare_cached("SELECT count(*) FROM marts.fct_deck_meta")?;
+            stmt.query_row([], |row| row.get::<_, i64>(0))
+        }).await?;
+
+        Ok(n)
     }
 
     pub async fn get(&self, deck_hash: String) -> Result<DeckMeta, AppError> {

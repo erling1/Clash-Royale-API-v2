@@ -23,6 +23,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(clans::list_clans)
             .service(clans::get_clan)
             .service(decks::list_decks)
+            .service(decks::count_decks)
             .service(decks::get_deck)
             .service(game_modes::list_game_modes)
             .service(game_modes::get_game_mode)
