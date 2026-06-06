@@ -37,7 +37,13 @@ resource "aws_instance" "app" {
     domain            = var.domain
   })
 
-  user_data_replace_on_change = true
+  # Don't let a routine `tofu apply` destroy the running box (and its DuckDB)
+  # just because cloud-init changed. To intentionally roll out cloud-init
+  # changes, replace the instance explicitly:
+  #   tofu apply -replace=aws_instance.app
+  lifecycle {
+    ignore_changes = [user_data]
+  }
 
   tags = { Name = "clashroyale-app" }
 }

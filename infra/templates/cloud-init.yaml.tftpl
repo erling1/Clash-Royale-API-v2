@@ -70,13 +70,16 @@ write_files:
       export CR_API_TOKEN QUACK_TOKEN
 
       cd /opt/clashroyale
+      # Always bring the API back up on exit, even if the pipeline fails partway
+      # (otherwise a failed run leaves it stopped after `docker compose stop api`).
+      trap 'docker compose start api' EXIT
+
       docker compose stop api
       docker pull "${pipeline_image}"
       docker run --rm \
         -v /opt/clashroyale/data:/app/database/data \
         -e CR_API_TOKEN -e QUACK_TOKEN \
         "${pipeline_image}"
-      docker compose start api
 
   - path: /etc/systemd/system/cr-pipeline.service
     permissions: '0644'

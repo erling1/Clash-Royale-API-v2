@@ -7,7 +7,7 @@ terraform {
   # NOTE: backend blocks can't use variables. Edit `bucket` + `region` to match
   # what infra/bootstrap created, then `tofu init`.
   backend "s3" {
-    bucket       = "REPLACE-ME-clashroyale-tfstate"
+    bucket       = "clashroyale-tfstate-erling1"
     key          = "infra/terraform.tfstate"
     region       = "eu-north-1"
     encrypt      = true
