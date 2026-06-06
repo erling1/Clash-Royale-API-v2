@@ -21,10 +21,12 @@ import type { PolRanking } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [cards, decks, players, rankings] = await Promise.all([
+  // Tiles use the count endpoints (not full lists); the chart inputs stay small.
+  const [cardMeta, topDecks, playerCount, deckCount, rankings] = await Promise.all([
     api.listCardMeta(1000),
     api.listDecks({ limit: 10 }),
-    api.listPlayers(1000),
+    api.countPlayers(),
+    api.countDecks(),
     api.listRankings({ limit: 5 }),
   ]);
 
@@ -93,9 +95,9 @@ export default async function HomePage() {
 
       {/* Stat tiles */}
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatTile icon={Layers} iconClass="bg-crystal/10 text-crystal" label="Tracked cards" value={fmtInt(cards.length)} />
-        <StatTile icon={LayoutGrid} iconClass="bg-success/10 text-success" label="Tracked decks" value={fmtInt(decks.length)} />
-        <StatTile icon={Users} iconClass="bg-purple/10 text-purple" label="Tracked players" value={fmtInt(players.length)} />
+        <StatTile icon={Layers} iconClass="bg-crystal/10 text-crystal" label="Tracked cards" value={fmtInt(cardMeta.length)} />
+        <StatTile icon={LayoutGrid} iconClass="bg-success/10 text-success" label="Tracked decks" value={fmtInt(deckCount)} />
+        <StatTile icon={Users} iconClass="bg-purple/10 text-purple" label="Tracked players" value={fmtInt(playerCount)} />
         <StatTile
           icon={Trophy}
           iconClass="bg-gold/15 text-gold"
@@ -114,7 +116,7 @@ export default async function HomePage() {
             <p className="text-xs text-fg-muted">Min. 50 appearances · top 10</p>
           </CardHeader>
           <CardContent>
-            <TopCardsByWinrate cards={cards} />
+            <TopCardsByWinrate cards={cardMeta} />
           </CardContent>
         </Card>
 
@@ -124,7 +126,7 @@ export default async function HomePage() {
             <p className="text-xs text-fg-muted">By appearance count · top 10</p>
           </CardHeader>
           <CardContent>
-            <TopDecksByPopularity decks={decks} />
+            <TopDecksByPopularity decks={topDecks} />
           </CardContent>
         </Card>
       </section>

@@ -27,15 +27,17 @@ impl DeckMatchupsRepo {
         Ok(matchups)
     }
 
-    pub async fn by_deck(&self, deck_hash: String) -> Result<Vec<DeckMatchup>, AppError> {
+    pub async fn by_deck(&self, deck_hash: String, limit: i64) -> Result<Vec<DeckMatchup>, AppError> {
+        // Bounded: a deck can face arbitrarily many opponents, so cap to the top-N
+        // by matchup_count rather than streaming every matchup row.
         let sql = format!(
-            "SELECT {} FROM marts.fct_deck_matchups WHERE deck_hash = ? ORDER BY matchup_count DESC",
+            "SELECT {} FROM marts.fct_deck_matchups WHERE deck_hash = ? ORDER BY matchup_count DESC LIMIT ?",
             DeckMatchup::COLUMNS
         );
 
         let matchups = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map(duckdb::params![deck_hash], DeckMatchup::from_row)?;
+            let rows = stmt.query_map(duckdb::params![deck_hash, limit], DeckMatchup::from_row)?;
             rows.collect::<duckdb::Result<Vec<DeckMatchup>>>()
         }).await?;
 

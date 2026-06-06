@@ -103,6 +103,32 @@ impl BattleRepo {
         Ok(rows)
     }
 
+    /// All deck cards for a player's most-recent `limit` battles in one query.
+    /// Replaces the per-battle fan-out the battles tab used to issue.
+    pub async fn deck_cards_for_player(
+        &self,
+        player_tag: String,
+        limit: i64,
+    ) -> Result<Vec<BattleDeckCard>, AppError> {
+        let sql = format!(
+            "SELECT {} FROM marts.fct_battle_deck_cards \
+             WHERE (queried_player_tag, battle_time) IN ( \
+                 SELECT queried_player_tag, battle_time FROM marts.fct_battles \
+                 WHERE queried_player_tag = ? ORDER BY battle_time DESC LIMIT ? \
+             ) \
+             ORDER BY battle_time DESC, participant_side, slot, deck_slot",
+            BattleDeckCard::COLUMNS
+        );
+
+        let rows = self.pool.conn(move |conn| {
+            let mut stmt = conn.prepare_cached(&sql)?;
+            let rows = stmt.query_map(duckdb::params![player_tag, limit], BattleDeckCard::from_row)?;
+            rows.collect::<duckdb::Result<Vec<BattleDeckCard>>>()
+        }).await?;
+
+        Ok(rows)
+    }
+
     pub async fn support_cards(
         &self,
         queried_player_tag: String,

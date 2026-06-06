@@ -4,6 +4,7 @@ pub mod arenas;
 pub mod battles;
 pub mod cards;
 pub mod clans;
+pub mod common;
 pub mod decks;
 pub mod game_modes;
 pub mod matchups;
@@ -33,6 +34,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(support_cards::list_support_cards)
             .service(support_cards::get_support_card)
             .service(players::list_players)
+            .service(players::count_players)
+            .service(players::list_player_battle_deck_cards)
             .service(players::get_player)
             .service(battles::list_battles)
             .service(battles::get_battle)

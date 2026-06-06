@@ -1,36 +1,26 @@
 import { z } from "zod";
 import { apiBase } from "./env";
 import {
-  ArenaSchema,
   BattleDeckCardSchema,
-  BattleParticipantSchema,
   BattleSchema,
-  BattleSupportCardSchema,
   CardMetaSchema,
   CardPairSchema,
   CardSchema,
   ClanSchema,
   DeckMatchupSchema,
   DeckMetaSchema,
-  GameModeSchema,
   PlayerSchema,
   PolRankingSchema,
-  SupportCardSchema,
-  type Arena,
   type Battle,
   type BattleDeckCard,
-  type BattleParticipant,
-  type BattleSupportCard,
   type Card,
   type CardMeta,
   type CardPair,
   type Clan,
   type DeckMatchup,
   type DeckMeta,
-  type GameMode,
   type Player,
   type PolRanking,
-  type SupportCard,
 } from "./types";
 
 export class ApiError extends Error {
@@ -85,15 +75,9 @@ function qs(params: Record<string, string | number | undefined>): string {
   return `?${u.toString()}`;
 }
 
-// ---- Arenas ----------------------------------------------------------------
+const CountSchema = z.object({ count: z.number().int() });
 
 export const api = {
-  listArenas: (opts?: FetchOptions): Promise<Arena[]> =>
-    getJSON("/api/v1/arenas", listSchema(ArenaSchema), opts),
-
-  getArena: (id: number, opts?: FetchOptions): Promise<Arena> =>
-    getJSON(`/api/v1/arenas/${id}`, ArenaSchema, opts),
-
   // ---- Cards --------------------------------------------------------------
 
   listCards: (opts?: FetchOptions): Promise<Card[]> =>
@@ -120,74 +104,88 @@ export const api = {
 
   // ---- Clans --------------------------------------------------------------
 
-  listClans: (limit?: number, opts?: FetchOptions): Promise<Clan[]> =>
-    getJSON(`/api/v1/clans${qs({ limit })}`, listSchema(ClanSchema), opts),
-
-  getClan: (tag: string, opts?: FetchOptions): Promise<Clan> =>
-    getJSON(`/api/v1/clans/${encodeURIComponent(tag)}`, ClanSchema, opts),
+  listClans: (
+    args?: { limit?: number; offset?: number },
+    opts?: FetchOptions,
+  ): Promise<Clan[]> =>
+    getJSON(
+      `/api/v1/clans${qs({ limit: args?.limit, offset: args?.offset })}`,
+      listSchema(ClanSchema),
+      opts,
+    ),
 
   // ---- Decks --------------------------------------------------------------
 
   listDecks: (
-    args?: { limit?: number; offset?: number },
+    args?: {
+      limit?: number;
+      offset?: number;
+      card_id?: number;
+      sort?: string;
+      dir?: "asc" | "desc";
+    },
     opts?: FetchOptions,
   ): Promise<DeckMeta[]> =>
     getJSON(
-      `/api/v1/decks${qs({ limit: args?.limit, offset: args?.offset })}`,
+      `/api/v1/decks${qs({
+        limit: args?.limit,
+        offset: args?.offset,
+        card_id: args?.card_id,
+        sort: args?.sort,
+        dir: args?.dir,
+      })}`,
       listSchema(DeckMetaSchema),
       opts,
     ),
 
   countDecks: (opts?: FetchOptions): Promise<number> =>
-    getJSON("/api/v1/decks/count", z.object({ count: z.number().int() }), opts).then(
-      (r) => r.count,
-    ),
+    getJSON("/api/v1/decks/count", CountSchema, opts).then((r) => r.count),
 
   getDeck: (hash: string, opts?: FetchOptions): Promise<DeckMeta> =>
     getJSON(`/api/v1/decks/${encodeURIComponent(hash)}`, DeckMetaSchema, opts),
 
   // ---- Matchups -----------------------------------------------------------
 
-  listMatchups: (
-    args?: { limit?: number; offset?: number },
+  getDeckMatchups: (
+    hash: string,
+    args?: { limit?: number },
     opts?: FetchOptions,
   ): Promise<DeckMatchup[]> =>
     getJSON(
-      `/api/v1/matchups${qs({ limit: args?.limit, offset: args?.offset })}`,
+      `/api/v1/matchups/${encodeURIComponent(hash)}${qs({ limit: args?.limit })}`,
       listSchema(DeckMatchupSchema),
       opts,
     ),
-
-  getDeckMatchups: (hash: string, opts?: FetchOptions): Promise<DeckMatchup[]> =>
-    getJSON(
-      `/api/v1/matchups/${encodeURIComponent(hash)}`,
-      listSchema(DeckMatchupSchema),
-      opts,
-    ),
-
-  // ---- Game modes ---------------------------------------------------------
-
-  listGameModes: (opts?: FetchOptions): Promise<GameMode[]> =>
-    getJSON("/api/v1/game-modes", listSchema(GameModeSchema), opts),
-
-  getGameMode: (id: number, opts?: FetchOptions): Promise<GameMode> =>
-    getJSON(`/api/v1/game-modes/${id}`, GameModeSchema, opts),
-
-  // ---- Support cards ------------------------------------------------------
-
-  listSupportCards: (opts?: FetchOptions): Promise<SupportCard[]> =>
-    getJSON("/api/v1/support-cards", listSchema(SupportCardSchema), opts),
-
-  getSupportCard: (id: number, opts?: FetchOptions): Promise<SupportCard> =>
-    getJSON(`/api/v1/support-cards/${id}`, SupportCardSchema, opts),
 
   // ---- Players ------------------------------------------------------------
 
-  listPlayers: (limit?: number, opts?: FetchOptions): Promise<Player[]> =>
-    getJSON(`/api/v1/players${qs({ limit })}`, listSchema(PlayerSchema), opts),
+  listPlayers: (
+    args?: { limit?: number; offset?: number },
+    opts?: FetchOptions,
+  ): Promise<Player[]> =>
+    getJSON(
+      `/api/v1/players${qs({ limit: args?.limit, offset: args?.offset })}`,
+      listSchema(PlayerSchema),
+      opts,
+    ),
+
+  countPlayers: (opts?: FetchOptions): Promise<number> =>
+    getJSON("/api/v1/players/count", CountSchema, opts).then((r) => r.count),
 
   getPlayer: (tag: string, opts?: FetchOptions): Promise<Player> =>
     getJSON(`/api/v1/players/${encodeURIComponent(tag)}`, PlayerSchema, opts),
+
+  /** Deck cards for a player's most-recent battles, in one request. */
+  getPlayerBattleDeckCards: (
+    tag: string,
+    args?: { limit?: number },
+    opts?: FetchOptions,
+  ): Promise<BattleDeckCard[]> =>
+    getJSON(
+      `/api/v1/players/${encodeURIComponent(tag)}/battle-deck-cards${qs({ limit: args?.limit })}`,
+      listSchema(BattleDeckCardSchema),
+      opts,
+    ),
 
   // ---- Battles ------------------------------------------------------------
 
@@ -201,58 +199,14 @@ export const api = {
       opts,
     ),
 
-  getBattle: (
-    player_tag: string,
-    battle_time: string,
-    opts?: FetchOptions,
-  ): Promise<Battle> =>
-    getJSON(
-      `/api/v1/battles/${encodeURIComponent(player_tag)}/${encodeURIComponent(battle_time)}`,
-      BattleSchema,
-      opts,
-    ),
-
-  listBattleParticipants: (
-    player_tag: string,
-    battle_time: string,
-    opts?: FetchOptions,
-  ): Promise<BattleParticipant[]> =>
-    getJSON(
-      `/api/v1/battles/${encodeURIComponent(player_tag)}/${encodeURIComponent(battle_time)}/participants`,
-      listSchema(BattleParticipantSchema),
-      opts,
-    ),
-
-  listBattleDeckCards: (
-    player_tag: string,
-    battle_time: string,
-    opts?: FetchOptions,
-  ): Promise<BattleDeckCard[]> =>
-    getJSON(
-      `/api/v1/battles/${encodeURIComponent(player_tag)}/${encodeURIComponent(battle_time)}/deck-cards`,
-      listSchema(BattleDeckCardSchema),
-      opts,
-    ),
-
-  listBattleSupportCards: (
-    player_tag: string,
-    battle_time: string,
-    opts?: FetchOptions,
-  ): Promise<BattleSupportCard[]> =>
-    getJSON(
-      `/api/v1/battles/${encodeURIComponent(player_tag)}/${encodeURIComponent(battle_time)}/support-cards`,
-      listSchema(BattleSupportCardSchema),
-      opts,
-    ),
-
   // ---- Rankings -----------------------------------------------------------
 
   listRankings: (
-    args?: { season_id?: string; limit?: number },
+    args?: { season_id?: string; limit?: number; offset?: number },
     opts?: FetchOptions,
   ): Promise<PolRanking[]> =>
     getJSON(
-      `/api/v1/rankings${qs({ season_id: args?.season_id, limit: args?.limit })}`,
+      `/api/v1/rankings${qs({ season_id: args?.season_id, limit: args?.limit, offset: args?.offset })}`,
       listSchema(PolRankingSchema),
       opts,
     ),

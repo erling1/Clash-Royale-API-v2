@@ -12,16 +12,37 @@ impl DeckRepo {
         Self { pool }
     }
 
-    pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<DeckMeta>, AppError> {
-        let sql = format!(
-            "SELECT {} FROM marts.fct_deck_meta ORDER BY popularity_rank ASC LIMIT ? OFFSET ?",
+    pub async fn list(
+        &self,
+        limit: i64,
+        offset: i64,
+        card_id: Option<i64>,
+        order_by: &str,
+    ) -> Result<Vec<DeckMeta>, AppError> {
+        // `order_by` is a whitelisted clause built by the route (never raw user
+        // input), so interpolating it here is injection-safe. Two prepared
+        // variants: the filtered one has an extra `?` for card_id, so the param
+        // counts differ and the SQL strings can't be shared.
+        let sql_all = format!(
+            "SELECT {} FROM marts.fct_deck_meta ORDER BY {order_by} LIMIT ? OFFSET ?",
+            DeckMeta::COLUMNS
+        );
+        let sql_by_card = format!(
+            "SELECT {} FROM marts.fct_deck_meta WHERE list_contains(card_ids, ?) \
+             ORDER BY {order_by} LIMIT ? OFFSET ?",
             DeckMeta::COLUMNS
         );
 
         let decks = self.pool.conn(move |conn| {
-            let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map(duckdb::params![limit, offset], DeckMeta::from_row)?;
-            rows.collect::<duckdb::Result<Vec<DeckMeta>>>()
+            if let Some(id) = card_id {
+                let mut stmt = conn.prepare_cached(&sql_by_card)?;
+                let rows = stmt.query_map(duckdb::params![id, limit, offset], DeckMeta::from_row)?;
+                rows.collect::<duckdb::Result<Vec<DeckMeta>>>()
+            } else {
+                let mut stmt = conn.prepare_cached(&sql_all)?;
+                let rows = stmt.query_map(duckdb::params![limit, offset], DeckMeta::from_row)?;
+                rows.collect::<duckdb::Result<Vec<DeckMeta>>>()
+            }
         }).await?;
 
         Ok(decks)

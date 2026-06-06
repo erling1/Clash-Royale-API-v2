@@ -46,7 +46,7 @@ function toBlocks(s: string): number[] {
 }
 
 /** MD5 hex digest of an ASCII string (sufficient for digit/'|' deck strings). */
-export function md5(str: string): string {
+function md5(str: string): string {
   const x = toBlocks(str);
   let a = 1732584193,
     b = -271733879,

@@ -5,8 +5,9 @@ import { DeckGrid } from "@/components/deck-grid";
 import { DeckActions } from "@/components/deck-actions";
 import { DeckMatchups } from "@/components/deck-matchups";
 import { FavoriteButton } from "@/components/favorite-button";
+import { Stat } from "@/components/stat";
+import { cardsById } from "@/lib/cards";
 import { fmtFloat, fmtInt, fmtPct } from "@/lib/format";
-import type { Card as CardModel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,7 @@ export default async function DeckDetailPage({
     throw err;
   }
 
-  const cardsById = new Map<number, CardModel>(
-    allCards.map((c) => [c.card_id, c]),
-  );
+  const byId = cardsById(allCards);
 
   return (
     <div className="space-y-8">
@@ -40,7 +39,7 @@ export default async function DeckDetailPage({
       </Link>
 
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <DeckGrid cardIds={deck.card_ids} cardsById={cardsById} size={84} />
+        <DeckGrid cardIds={deck.card_ids} cardsById={byId} size={84} />
         <div className="flex-1">
           <h1 className="font-display text-3xl tracking-wide text-fg text-glow-gold">
             Deck #{deck.popularity_rank}
@@ -68,15 +67,6 @@ export default async function DeckDetailPage({
       </div>
 
       <DeckMatchups matchups={matchups} cards={allCards} />
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="panel px-4 py-3">
-      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
-      <div className="mt-1 font-display text-2xl text-fg text-glow-crystal">{value}</div>
     </div>
   );
 }

@@ -7,12 +7,14 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { deckHash } from "@/lib/deck-hash";
-import type { Card } from "@/lib/types";
+import { useCardsById } from "@/lib/cards";
 import { CardImage } from "@/components/card-image";
 import { DeckGrid } from "@/components/deck-grid";
 import { DeckActions } from "@/components/deck-actions";
 import { DeckMatchups } from "@/components/deck-matchups";
 import { FavoriteButton } from "@/components/favorite-button";
+import { RarityFilter, deriveRarities } from "@/components/rarity-filter";
+import { Stat } from "@/components/stat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +26,6 @@ const DECK_SIZE = 8;
 // Deck-slot tile size, matching the 285:420 card art ratio used elsewhere.
 const SLOT_W = 76;
 const SLOT_H = Math.round((SLOT_W * 420) / 285);
-const RARITY_ORDER = ["common", "rare", "epic", "legendary", "champion"];
 
 function parseCards(raw: string | null): number[] {
   if (!raw) return [];
@@ -45,10 +46,7 @@ export function DeckBuilder() {
     queryFn: () => api.listCards(),
     staleTime: 5 * 60 * 1000,
   });
-  const cardsById = React.useMemo(
-    () => new Map<number, Card>((cards ?? []).map((c) => [c.card_id, c])),
-    [cards],
-  );
+  const cardsById = useCardsById(cards);
 
   const [selected, setSelected] = React.useState<number[]>(() =>
     parseCards(searchParams.get("cards")),
@@ -56,10 +54,7 @@ export function DeckBuilder() {
   const [q, setQ] = React.useState("");
   const [activeRarities, setActiveRarities] = React.useState<Set<string>>(new Set());
 
-  const rarities = React.useMemo(() => {
-    const set = new Set((cards ?? []).map((c) => c.rarity.toLowerCase()));
-    return [...set].sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
-  }, [cards]);
+  const rarities = React.useMemo(() => deriveRarities(cards ?? []), [cards]);
 
   const toggleRarity = (r: string) =>
     setActiveRarities((prev) => {
@@ -244,27 +239,7 @@ export function DeckBuilder() {
             onChange={(e) => setQ(e.target.value)}
             className="max-w-xs"
           />
-          <div className="flex flex-wrap gap-1.5">
-            {rarities.map((r) => {
-              const active = activeRarities.has(r);
-              return (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => toggleRarity(r)}
-                  className={cn(
-                    "rounded-md border px-2.5 py-1 text-xs font-semibold capitalize transition-colors",
-                    active
-                      ? "border-crystal/60 bg-crystal/10 text-crystal"
-                      : "border-border text-fg-muted hover:bg-bg-panel-hover hover:text-fg",
-                    !active && rarityClass(r),
-                  )}
-                >
-                  {r}
-                </button>
-              );
-            })}
-          </div>
+          <RarityFilter rarities={rarities} active={activeRarities} onToggle={toggleRarity} />
           <span className="ml-auto text-xs text-fg-muted">{fmtInt(filtered.length)} cards</span>
         </div>
         <div
@@ -303,15 +278,6 @@ export function DeckBuilder() {
           })}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="panel px-4 py-3">
-      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
-      <div className="mt-1 font-display text-2xl text-fg text-glow-crystal">{value}</div>
     </div>
   );
 }

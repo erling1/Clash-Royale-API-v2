@@ -6,12 +6,6 @@ import { z } from "zod";
  * frontend side and must be kept in sync with the Rust structs.
  */
 
-export const ArenaSchema = z.object({
-  arena_id: z.number().int(),
-  arena_name: z.string(),
-});
-export type Arena = z.infer<typeof ArenaSchema>;
-
 export const CardSchema = z.object({
   card_id: z.number().int(),
   card_name: z.string(),
@@ -99,12 +93,6 @@ export const DeckMatchupSchema = z.object({
 });
 export type DeckMatchup = z.infer<typeof DeckMatchupSchema>;
 
-export const GameModeSchema = z.object({
-  game_mode_id: z.number().int(),
-  game_mode_name: z.string(),
-});
-export type GameMode = z.infer<typeof GameModeSchema>;
-
 export const PlayerSchema = z.object({
   player_tag: z.string(),
   player_name: z.string(),
@@ -149,14 +137,6 @@ export const PolRankingSchema = z.object({
 });
 export type PolRanking = z.infer<typeof PolRankingSchema>;
 
-export const SupportCardSchema = z.object({
-  card_id: z.number().int(),
-  card_name: z.string(),
-  rarity: z.string(),
-  max_level: z.number().int(),
-});
-export type SupportCard = z.infer<typeof SupportCardSchema>;
-
 export const BattleSchema = z.object({
   queried_player_tag: z.string(),
   battle_time: z.string(),
@@ -174,28 +154,6 @@ export const BattleSchema = z.object({
 });
 export type Battle = z.infer<typeof BattleSchema>;
 
-export const BattleParticipantSchema = z.object({
-  queried_player_tag: z.string(),
-  battle_time: z.string(),
-  participant_side: z.string(),
-  slot: z.number().int(),
-  player_tag: z.string(),
-  player_name: z.string(),
-  starting_trophies: z.number().nullable(),
-  trophy_change: z.number().nullable(),
-  crowns: z.number().int(),
-  king_tower_hit_points: z.number().int(),
-  princess_tower_1_hp: z.number().nullable(),
-  princess_tower_2_hp: z.number().nullable(),
-  total_tower_hp_remaining: z.number().nullable(),
-  clan_tag: z.string().nullable(),
-  global_rank: z.number().nullable(),
-  elixir_leaked: z.number().nullable(),
-  is_winner: z.boolean().nullable(),
-  extracted_date: z.string(),
-});
-export type BattleParticipant = z.infer<typeof BattleParticipantSchema>;
-
 export const BattleDeckCardSchema = z.object({
   queried_player_tag: z.string(),
   battle_time: z.string(),
@@ -210,15 +168,3 @@ export const BattleDeckCardSchema = z.object({
   extracted_date: z.string(),
 });
 export type BattleDeckCard = z.infer<typeof BattleDeckCardSchema>;
-
-export const BattleSupportCardSchema = z.object({
-  queried_player_tag: z.string(),
-  battle_time: z.string(),
-  participant_side: z.string(),
-  slot: z.number().int(),
-  support_slot: z.number().int(),
-  card_id: z.number().int(),
-  card_level: z.number().int(),
-  extracted_date: z.string(),
-});
-export type BattleSupportCard = z.infer<typeof BattleSupportCardSchema>;

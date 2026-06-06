@@ -2,15 +2,12 @@ use actix_web::{get, web, HttpResponse};
 use serde::Deserialize;
 use crate::repos::DeckMatchupsRepo;
 use crate::error::AppError;
+use crate::routes::common::{clamp_limit, clamp_offset, LimitQuery};
 
 #[derive(Debug, Deserialize)]
 pub struct MatchupListQuery {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
-}
-
-fn clamp_limit(raw: Option<u32>) -> i64 {
-    raw.unwrap_or(100).min(1000) as i64
 }
 
 #[get("/matchups")]
@@ -20,7 +17,7 @@ pub async fn list_matchups(
 ) -> Result<HttpResponse, AppError> {
     let q = query.into_inner();
     let limit = clamp_limit(q.limit);
-    let offset = q.offset.unwrap_or(0) as i64;
+    let offset = clamp_offset(q.offset);
     let matchups = repo.list(limit, offset).await?;
     Ok(HttpResponse::Ok().json(matchups))
 }
@@ -29,8 +26,10 @@ pub async fn list_matchups(
 pub async fn get_deck_matchups(
     repo: web::Data<DeckMatchupsRepo>,
     path: web::Path<String>,
+    query: web::Query<LimitQuery>,
 ) -> Result<HttpResponse, AppError> {
     let hash = path.into_inner();
-    let matchups = repo.by_deck(hash).await?;
+    let limit = clamp_limit(query.into_inner().limit);
+    let matchups = repo.by_deck(hash, limit).await?;
     Ok(HttpResponse::Ok().json(matchups))
 }

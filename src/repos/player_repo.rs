@@ -12,19 +12,30 @@ impl PlayerRepo {
         Self { pool }
     }
 
-    pub async fn list(&self, limit: i64) -> Result<Vec<Player>, AppError> {
+    pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<Player>, AppError> {
+        // Stable ORDER BY (player_tag breaks trophy ties) so LIMIT/OFFSET paging
+        // is deterministic and the client can page server-side.
         let sql = format!(
-            "SELECT {} FROM marts.dim_players LIMIT ?",
+            "SELECT {} FROM marts.dim_players ORDER BY trophies DESC, player_tag LIMIT ? OFFSET ?",
             Player::COLUMNS
         );
 
         let players = self.pool.conn(move |conn| {
             let mut stmt = conn.prepare_cached(&sql)?;
-            let rows = stmt.query_map([limit], Player::from_row)?;
+            let rows = stmt.query_map(duckdb::params![limit, offset], Player::from_row)?;
             rows.collect::<duckdb::Result<Vec<Player>>>()
         }).await?;
 
         Ok(players)
+    }
+
+    pub async fn count(&self) -> Result<i64, AppError> {
+        let n = self.pool.conn(|conn| {
+            let mut stmt = conn.prepare_cached("SELECT count(*) FROM marts.dim_players")?;
+            stmt.query_row([], |row| row.get::<_, i64>(0))
+        }).await?;
+
+        Ok(n)
     }
 
     pub async fn get(&self, tag: String) -> Result<Player, AppError> {

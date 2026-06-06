@@ -5,18 +5,26 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Stat } from "@/components/stat";
+import { Pager } from "@/components/pager";
 import { fmtInt, fmtPct } from "@/lib/format";
 import type { Player } from "@/lib/types";
 
-const PAGE_SIZE = 24;
-
-export function PlayersGrid({ players }: { players: Player[] }) {
+export function PlayersGrid({
+  players,
+  page,
+  total,
+  hasNext,
+}: {
+  players: Player[];
+  page: number;
+  total?: number;
+  hasNext: boolean;
+}) {
+  // Search filters the loaded page only (pagination is server-side).
   const [q, setQ] = React.useState("");
-  const [page, setPage] = React.useState(0);
-
   const query = q.trim().toLowerCase();
-  const filtered = React.useMemo(() => {
+  const rows = React.useMemo(() => {
     if (!query) return players;
     return players.filter(
       (p) =>
@@ -26,15 +34,10 @@ export function PlayersGrid({ players }: { players: Player[] }) {
     );
   }, [players, query]);
 
-  React.useEffect(() => setPage(0), [query]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const rows = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
   return (
     <div className="space-y-4">
       <Input
-        placeholder="Search by name, tag or clan…"
+        placeholder="Filter this page by name, tag or clan…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         className="max-w-sm"
@@ -42,7 +45,7 @@ export function PlayersGrid({ players }: { players: Player[] }) {
 
       {rows.length === 0 ? (
         <p className="py-12 text-center text-sm text-fg-muted">
-          No players match “{q}”.
+          No players on this page match “{q}”.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -58,12 +61,12 @@ export function PlayersGrid({ players }: { players: Player[] }) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-2 text-xs">
-                    <Stat label="Trophies" value={fmtInt(p.trophies)} highlight />
-                    <Stat label="Best" value={fmtInt(p.best_trophies)} />
-                    <Stat label="Win rate" value={fmtPct(p.win_rate)} />
-                    <Stat label="Wins" value={fmtInt(p.wins)} />
-                    <Stat label="Losses" value={fmtInt(p.losses)} />
-                    <Stat label="Level" value={fmtInt(p.exp_level)} />
+                    <Stat compact label="Trophies" value={fmtInt(p.trophies)} accent="gold" />
+                    <Stat compact label="Best" value={fmtInt(p.best_trophies)} />
+                    <Stat compact label="Win rate" value={fmtPct(p.win_rate)} />
+                    <Stat compact label="Wins" value={fmtInt(p.wins)} />
+                    <Stat compact label="Losses" value={fmtInt(p.losses)} />
+                    <Stat compact label="Level" value={fmtInt(p.exp_level)} />
                   </div>
                   {p.clan_tag && (
                     <div className="mt-3">
@@ -77,69 +80,7 @@ export function PlayersGrid({ players }: { players: Player[] }) {
         </div>
       )}
 
-      <Pager
-        page={page}
-        pageCount={pageCount}
-        total={filtered.length}
-        onPage={setPage}
-      />
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div>
-      <div className="text-fg-dim">{label}</div>
-      <div className={highlight ? "font-display text-gold text-glow-gold" : "text-fg"}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function Pager({
-  page,
-  pageCount,
-  total,
-  onPage,
-}: {
-  page: number;
-  pageCount: number;
-  total: number;
-  onPage: (updater: (p: number) => number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between text-xs text-fg-muted">
-      <div>
-        Page {page + 1} of {pageCount} · {fmtInt(total)} results
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPage((p) => Math.max(0, p - 1))}
-          disabled={page === 0}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPage((p) => p + 1)}
-          disabled={page + 1 >= pageCount}
-        >
-          Next
-        </Button>
-      </div>
+      <Pager page={page} hasNext={hasNext} total={total} />
     </div>
   );
 }

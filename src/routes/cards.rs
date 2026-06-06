@@ -2,6 +2,7 @@ use actix_web::{get, web, HttpResponse};
 use serde::Deserialize;
 use crate::repos::CardRepo;
 use crate::error::AppError;
+use crate::routes::common::clamp_limit;
 
 #[derive(Debug, Deserialize)]
 pub struct CardPairsQuery {
@@ -12,10 +13,6 @@ pub struct CardPairsQuery {
 #[derive(Debug, Deserialize)]
 pub struct CardMetaListQuery {
     pub limit: Option<u32>,
-}
-
-fn clamp_limit(raw: Option<u32>) -> i64 {
-    raw.unwrap_or(100).min(1000) as i64
 }
 
 #[get("/cards")]

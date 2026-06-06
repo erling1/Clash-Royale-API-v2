@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpServer};
 
 mod db;
 mod error;
@@ -30,6 +30,15 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            // gzip/br/zstd negotiated via Accept-Encoding (actix-web default features)
+            .wrap(middleware::Compress::default())
+            // Mart data changes only on the pipeline cadence — let browsers/CDN cache GETs.
+            // NOTE: DefaultHeaders applies to every response incl. 4xx/5xx; revisit if we
+            // ever return per-user or rapidly-changing data.
+            .wrap(
+                middleware::DefaultHeaders::new()
+                    .add(("Cache-Control", "public, max-age=60, stale-while-revalidate=300")),
+            )
             .app_data(arena_repo.clone())
             .app_data(battle_repo.clone())
             .app_data(card_repo.clone())

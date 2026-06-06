@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Card } from "@/lib/types";
+import { useCardsById } from "@/lib/cards";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CardImage } from "@/components/card-image";
 import { DeckGrid } from "@/components/deck-grid";
@@ -35,7 +35,14 @@ export function CommandPalette({
 }) {
   const router = useRouter();
   const [q, setQ] = React.useState("");
+  const [debouncedQ, setDebouncedQ] = React.useState("");
   const [active, setActive] = React.useState(0);
+
+  // Debounce filtering so we don't rebuild every group on each keystroke.
+  React.useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(q), 150);
+    return () => window.clearTimeout(t);
+  }, [q]);
 
   // Global Cmd/Ctrl+K toggles the palette from anywhere.
   React.useEffect(() => {
@@ -65,7 +72,7 @@ export function CommandPalette({
   });
   const { data: players } = useQuery({
     queryKey: ["players", "all"],
-    queryFn: () => api.listPlayers(1000),
+    queryFn: () => api.listPlayers({ limit: 1000 }),
     staleTime: 5 * 60 * 1000,
     enabled,
   });
@@ -76,12 +83,9 @@ export function CommandPalette({
     enabled,
   });
 
-  const cardsById = React.useMemo(
-    () => new Map<number, Card>((cards ?? []).map((c) => [c.card_id, c])),
-    [cards],
-  );
+  const cardsById = useCardsById(cards);
 
-  const query = q.trim().toLowerCase();
+  const query = debouncedQ.trim().toLowerCase();
 
   const groups = React.useMemo<Group[]>(() => {
     if (!query) return [];

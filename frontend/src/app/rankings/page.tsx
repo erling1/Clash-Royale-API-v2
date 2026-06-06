@@ -1,13 +1,21 @@
 import { api } from "@/lib/api";
 import { RankingsTable } from "@/components/rankings-table";
 import { DataFreshness } from "@/components/data-freshness";
-import { fmtInt } from "@/lib/format";
+import { PAGE_SIZE } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
-export default async function RankingsPage() {
-  const rankings = await api.listRankings({ limit: 1000 });
-  const sorted = [...rankings].sort((a, b) => a.player_rank - b.player_rank);
+export default async function RankingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const rawPage = Number.parseInt(pageParam ?? "1", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage - 1 : 0;
+
+  // Already ordered by player_rank server-side; fetch only the visible page.
+  const rankings = await api.listRankings({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
 
   return (
     <div className="space-y-6">
@@ -17,13 +25,13 @@ export default async function RankingsPage() {
             Path of Legends — Rankings
           </h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Top players by Elo rating. {fmtInt(sorted.length)} entries.
+            Top players by Elo rating, ranked by Path of Legends standing.
           </p>
         </div>
-        <DataFreshness iso={sorted[0]?.extracted_date} />
+        <DataFreshness iso={rankings[0]?.extracted_date} />
       </div>
 
-      <RankingsTable rankings={sorted} />
+      <RankingsTable rankings={rankings} page={page} hasNext={rankings.length === PAGE_SIZE} />
     </div>
   );
 }

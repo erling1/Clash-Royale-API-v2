@@ -4,6 +4,7 @@ import { api, ApiError } from "@/lib/api";
 import { CardImage } from "@/components/card-image";
 import { DeckGrid } from "@/components/deck-grid";
 import { FavoriteButton } from "@/components/favorite-button";
+import { Stat } from "@/components/stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fmtFloat, fmtInt, fmtPct, rarityClass } from "@/lib/format";
+import { cardsById } from "@/lib/cards";
+import { fmtFloat, fmtInt, fmtPct, rarityClass, winRateVariant } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,28 +29,23 @@ export default async function CardDetailPage({
   const id = Number(idStr);
   if (!Number.isFinite(id)) notFound();
 
-  let card, meta, pairs, allCards, allDecks;
+  let card, meta, pairs, allCards, decksWithCard;
   try {
-    [card, meta, pairs, allCards, allDecks] = await Promise.all([
+    [card, meta, pairs, allCards, decksWithCard] = await Promise.all([
       api.getCard(id),
       api.getCardMeta(id).catch(() => null),
       api.listCardPairs({ card_id: id, limit: 25 }),
       api.listCards(),
-      api.listDecks({ limit: 1000 }),
+      // Server-side filter: the most popular decks that run this card, across the
+      // full set (no client over-fetch, no >rank-1000 omission).
+      api.listDecks({ card_id: id, limit: 12 }),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
 
-  const cardsById = new Map(allCards.map((c) => [c.card_id, c] as const));
-  // Most popular decks that run this card. Scoped to the top-1000 deck list we
-  // already fetch — a card in a deck ranked >1000 won't show. A dedicated
-  // /cards/{id}/decks endpoint would cover the full set (see notes).
-  const decksWithCard = allDecks
-    .filter((d) => d.card_ids.includes(id))
-    .sort((a, b) => a.popularity_rank - b.popularity_rank)
-    .slice(0, 12);
+  const byId = cardsById(allCards);
 
   return (
     <div className="space-y-8">
@@ -108,27 +105,22 @@ export default async function CardDetailPage({
         <section className="space-y-3">
           <div>
             <h2 className="font-display text-xl text-fg">Popular decks with this card</h2>
-            <p className="text-xs text-fg-muted">Among the top 1,000 tracked decks.</p>
+            <p className="text-xs text-fg-muted">Most-played tracked decks that run this card.</p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {decksWithCard.map((d) => {
-              const wr = d.win_rate;
-              const wrVariant =
-                wr === null ? "muted" : wr >= 0.55 ? "success" : wr < 0.45 ? "danger" : "muted";
-              return (
-                <Link
-                  key={d.deck_hash}
-                  href={`/decks/${d.deck_hash}` as `/decks/${string}`}
-                  className="panel flex items-center justify-between gap-3 p-3 transition hover:panel-gold hover:-translate-y-0.5"
-                >
-                  <DeckGrid cardIds={d.card_ids} cardsById={cardsById} size={34} linkCards={false} />
-                  <div className="shrink-0 text-right text-xs">
-                    <div className="text-fg-muted">#{d.popularity_rank}</div>
-                    <Badge variant={wrVariant}>{fmtPct(wr)}</Badge>
-                  </div>
-                </Link>
-              );
-            })}
+            {decksWithCard.map((d) => (
+              <Link
+                key={d.deck_hash}
+                href={`/decks/${d.deck_hash}` as `/decks/${string}`}
+                className="panel flex items-center justify-between gap-3 p-3 transition hover:panel-gold hover:-translate-y-0.5"
+              >
+                <DeckGrid cardIds={d.card_ids} cardsById={byId} size={34} linkCards={false} />
+                <div className="shrink-0 text-right text-xs">
+                  <div className="text-fg-muted">#{d.popularity_rank}</div>
+                  <Badge variant={winRateVariant(d.win_rate)}>{fmtPct(d.win_rate)}</Badge>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}
@@ -155,7 +147,7 @@ export default async function CardDetailPage({
                   const partnerId = p.card_id_a === id ? p.card_id_b : p.card_id_a;
                   const partnerName =
                     p.card_id_a === id ? p.card_name_b : p.card_name_a;
-                  const partner = cardsById.get(partnerId);
+                  const partner = byId.get(partnerId);
                   return (
                     <TableRow key={`${p.card_id_a}-${p.card_id_b}`}>
                       <TableCell>
@@ -189,15 +181,6 @@ export default async function CardDetailPage({
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="panel px-4 py-3">
-      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
-      <div className="mt-1 font-display text-2xl text-fg text-glow-crystal">{value}</div>
     </div>
   );
 }

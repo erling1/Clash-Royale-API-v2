@@ -55,3 +55,16 @@ export function rarityClass(rarity: string | null | undefined): string {
   if (!rarity) return "text-fg-muted";
   return RARITY_CLASS[rarity.toLowerCase()] ?? "text-fg-muted";
 }
+
+export type WinRateVariant = "success" | "danger" | "muted";
+
+/**
+ * Badge variant for a win rate (0..1): ≥55% reads as good, <45% as bad, the
+ * middle (and unknown) as neutral. Previously reimplemented in three files.
+ */
+export function winRateVariant(wr: number | null | undefined): WinRateVariant {
+  if (wr === null || wr === undefined) return "muted";
+  if (wr >= 0.55) return "success";
+  if (wr < 0.45) return "danger";
+  return "muted";
+}

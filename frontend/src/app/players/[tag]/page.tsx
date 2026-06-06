@@ -5,6 +5,7 @@ import { PlayerBattlesTab } from "./battles-tab";
 import { Badge } from "@/components/ui/badge";
 import { DataFreshness } from "@/components/data-freshness";
 import { FavoriteButton } from "@/components/favorite-button";
+import { Stat } from "@/components/stat";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtInt, fmtPct } from "@/lib/format";
 
@@ -117,29 +118,6 @@ export default async function PlayerDetailPage({
           <PlayerBattlesTab playerTag={player.player_tag} />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: "gold" | "crystal";
-}) {
-  const tone =
-    accent === "gold"
-      ? "text-gold text-glow-gold"
-      : accent === "crystal"
-        ? "text-crystal-bright text-glow-crystal"
-        : "text-fg";
-  return (
-    <div className="panel px-4 py-3">
-      <div className="text-xs uppercase tracking-wider text-fg-muted">{label}</div>
-      <div className={`mt-1 font-display text-2xl ${tone}`}>{value}</div>
     </div>
   );
 }

@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fmtInt, fmtPct } from "@/lib/format";
+import { fmtInt, fmtPct, winRateVariant } from "@/lib/format";
+import { useCardsById } from "@/lib/cards";
 import { cn } from "@/lib/utils";
 import type { Card as CardModel, DeckMatchup } from "@/lib/types";
 
@@ -22,13 +23,6 @@ const TOP_N = 10;
 // single game reads as a noisy 0%/100%, so low thresholds surface small samples.
 const MIN_OPTIONS = [1, 3, 5, 10, 20] as const;
 const DEFAULT_MIN = 3;
-
-function winRateVariant(wr: number | null) {
-  if (wr === null) return "muted" as const;
-  if (wr >= 0.55) return "success" as const;
-  if (wr < 0.45) return "danger" as const;
-  return "muted" as const;
-}
 
 export function DeckMatchups({
   matchups,
@@ -39,10 +33,7 @@ export function DeckMatchups({
 }) {
   const [minBattles, setMinBattles] = React.useState<number>(DEFAULT_MIN);
 
-  const cardsById = React.useMemo(
-    () => new Map<number, CardModel>(cards.map((c) => [c.card_id, c])),
-    [cards],
-  );
+  const cardsById = useCardsById(cards);
   // Opponent rows carry the deck label (comma-separated names) but not ids;
   // rebuild ids from the label so the opponent deck renders as a grid.
   const idByName = React.useMemo(

@@ -13,8 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { RarityFilter, deriveRarities } from "@/components/rarity-filter";
 import { fmtInt, fmtPct, rarityClass } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import type { Card, CardMeta } from "@/lib/types";
 
 type SortKey = "popularity" | "winrate" | "elixir" | "name";
@@ -26,20 +26,13 @@ const SORT_LABEL: Record<SortKey, string> = {
   name: "Name (A–Z)",
 };
 
-const RARITY_ORDER = ["common", "rare", "epic", "legendary", "champion"];
-
 export function CardsGrid({ cards, meta }: { cards: Card[]; meta: CardMeta[] }) {
   const metaByCard = React.useMemo(
     () => new Map(meta.map((m) => [m.card_id, m] as const)),
     [meta],
   );
 
-  const rarities = React.useMemo(() => {
-    const set = new Set(cards.map((c) => c.rarity.toLowerCase()));
-    return [...set].sort(
-      (a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b),
-    );
-  }, [cards]);
+  const rarities = React.useMemo(() => deriveRarities(cards), [cards]);
 
   const [q, setQ] = React.useState("");
   const [activeRarities, setActiveRarities] = React.useState<Set<string>>(
@@ -102,27 +95,7 @@ export function CardsGrid({ cards, meta }: { cards: Card[]; meta: CardMeta[] }) 
           className="max-w-xs"
         />
 
-        <div className="flex flex-wrap gap-1.5">
-          {rarities.map((r) => {
-            const active = activeRarities.has(r);
-            return (
-              <button
-                key={r}
-                type="button"
-                onClick={() => toggleRarity(r)}
-                className={cn(
-                  "rounded-md border px-2.5 py-1 text-xs font-semibold capitalize transition-colors",
-                  active
-                    ? "border-crystal/60 bg-crystal/10 text-crystal"
-                    : "border-border text-fg-muted hover:bg-bg-panel-hover hover:text-fg",
-                  !active && rarityClass(r),
-                )}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
+        <RarityFilter rarities={rarities} active={activeRarities} onToggle={toggleRarity} />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
