@@ -63,3 +63,47 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/clash-royale-api-v2/${{ matrix.name }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Pull the freshly-pushed images onto the box and recreate the containers.
+  # `:latest` is cached locally, so the box never picks up a new image on its
+  # own — this closes that gap. Auth is OIDC (see infra/cicd.tf), no AWS keys.
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required to request the OIDC token
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-north-1
+
+      - name: Pull new images + recreate api/frontend on the box
+        run: |
+          set -euo pipefail
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=clashroyale-app" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          echo "Deploying ${GITHUB_SHA::7} to $INSTANCE_ID"
+
+          # pipeline image is pulled by cr-pipeline.sh at 04:00; here we only
+          # refresh the serving containers. `up -d` no-ops if the digest is
+          # unchanged. prune frees disk on the 1 GiB box.
+          CMD=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "CI deploy ${GITHUB_SHA::7}" \
+            --parameters 'commands=["cd /opt/clashroyale","docker compose pull api frontend","docker compose up -d api frontend","docker image prune -f"]' \
+            --query Command.CommandId --output text)
+          echo "CommandId: $CMD"
+
+          aws ssm wait command-executed --command-id "$CMD" --instance-id "$INSTANCE_ID" || true
+          STATUS=$(aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE_ID" --query Status --output text)
+          echo "::group::deploy output"
+          aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE_ID" --query StandardOutputContent --output text
+          aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE_ID" --query StandardErrorContent --output text
+          echo "::endgroup::"
+          echo "Status: $STATUS"
+          test "$STATUS" = "Success"

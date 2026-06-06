@@ -22,6 +22,8 @@ write_files:
             - /opt/clashroyale/Caddyfile:/etc/caddy/Caddyfile:ro
             - caddy_data:/data
             - caddy_config:/config
+            # JSON access log, tailed by alloy and shipped to Loki.
+            - caddy_logs:/var/log/caddy
           depends_on:
             - frontend
 
@@ -42,9 +44,36 @@ write_files:
           volumes:
             - /opt/clashroyale/data:/app/database/data
 
+        # ----- observability agent: host metrics + api /metrics + caddy logs -
+        # Ships everything to Grafana Cloud (free tier). Capped at 256m so it
+        # can never be the process the OOM-killer reaps during the 04:00
+        # pipeline. While the api is stopped for that run, the api scrape just
+        # reports up=0 — a visible, harmless maintenance gap.
+        alloy:
+          image: grafana/alloy:latest
+          restart: unless-stopped
+          command:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/var/lib/alloy/data
+          env_file:
+            - /opt/clashroyale/alloy.env
+          pid: host
+          mem_limit: 256m
+          volumes:
+            - /opt/clashroyale/alloy/config.alloy:/etc/alloy/config.alloy:ro
+            - alloy_data:/var/lib/alloy/data
+            - caddy_logs:/var/log/caddy:ro
+            # host metrics for prometheus.exporter.unix (read-only)
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /:/rootfs:ro
+
       volumes:
         caddy_data:
         caddy_config:
+        caddy_logs:
+        alloy_data:
 
   # ----- Caddy: TLS + reverse proxy ----------------------------------------
   - path: /opt/clashroyale/Caddyfile
@@ -52,8 +81,106 @@ write_files:
     content: |
       ${domain == "" ? ":443" : domain} {
           tls internal
+          # Structured access log -> file on the shared caddy_logs volume.
+          # alloy tails this and ships it to Loki. Rolled so it can't fill disk.
+          log {
+              output file /var/log/caddy/access.log {
+                  roll_size 10MiB
+                  roll_keep 3
+              }
+              format json
+          }
           reverse_proxy frontend:3001
       }
+
+  # ----- alloy: collectors + Grafana Cloud shipping -----------------------
+  - path: /opt/clashroyale/alloy/config.alloy
+    permissions: '0644'
+    content: |
+      // Credentials come from /opt/clashroyale/alloy.env (written at boot from
+      // SSM by cr-alloy-env.sh): GRAFANA_PROM_URL/USER, GRAFANA_LOKI_URL/USER,
+      // GRAFANA_TOKEN. One access-policy token is the password for both.
+
+      prometheus.remote_write "grafanacloud" {
+        endpoint {
+          url = sys.env("GRAFANA_PROM_URL")
+          basic_auth {
+            username = sys.env("GRAFANA_PROM_USER")
+            password = sys.env("GRAFANA_TOKEN")
+          }
+        }
+      }
+
+      loki.write "grafanacloud" {
+        endpoint {
+          url = sys.env("GRAFANA_LOKI_URL")
+          basic_auth {
+            username = sys.env("GRAFANA_LOKI_USER")
+            password = sys.env("GRAFANA_TOKEN")
+          }
+        }
+      }
+
+      // ---- host metrics: cpu / mem / swap / disk ----
+      prometheus.exporter.unix "host" {
+        rootfs_path = "/rootfs"
+        procfs_path = "/host/proc"
+        sysfs_path  = "/host/sys"
+      }
+
+      prometheus.scrape "host" {
+        targets         = prometheus.exporter.unix.host.targets
+        job_name        = "node"
+        forward_to      = [prometheus.remote_write.grafanacloud.receiver]
+        scrape_interval = "60s"
+      }
+
+      // ---- api application metrics (actix-web-prom /metrics) ----
+      // api is stopped during the 04:00 pipeline -> up=0 for that window.
+      prometheus.scrape "api" {
+        targets         = [{ "__address__" = "api:3000" }]
+        job_name        = "clashroyale-api"
+        metrics_path    = "/metrics"
+        forward_to      = [prometheus.remote_write.grafanacloud.receiver]
+        scrape_interval = "30s"
+      }
+
+      // ---- caddy access logs -> Loki ----
+      local.file_match "caddy" {
+        path_targets = [{ "__path__" = "/var/log/caddy/access.log" }]
+      }
+
+      loki.source.file "caddy" {
+        targets    = local.file_match.caddy.targets
+        forward_to = [loki.process.caddy.receiver]
+      }
+
+      loki.process "caddy" {
+        forward_to = [loki.write.grafanacloud.receiver]
+        stage.static_labels {
+          values = { job = "caddy", host = "clashroyale" }
+        }
+      }
+
+  # ----- alloy credentials: pull grafana_* params from SSM into an env file -
+  # Re-runnable: rotate the token in SSM, re-run this, then
+  #   docker compose up -d alloy
+  - path: /usr/local/bin/cr-alloy-env.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      REGION="${region}"
+      get() { aws ssm get-parameter --region "$REGION" --name "$1" --with-decryption --query Parameter.Value --output text; }
+      umask 077
+      mkdir -p /opt/clashroyale
+      cat > /opt/clashroyale/alloy.env <<EOF
+      GRAFANA_PROM_URL=$(get /clashroyale/grafana_prom_url)
+      GRAFANA_PROM_USER=$(get /clashroyale/grafana_prom_user)
+      GRAFANA_LOKI_URL=$(get /clashroyale/grafana_loki_url)
+      GRAFANA_LOKI_USER=$(get /clashroyale/grafana_loki_user)
+      GRAFANA_TOKEN=$(get /clashroyale/grafana_token)
+      EOF
 
   # ----- the cron job: stop api -> run pipeline image -> start api ----------
   # The pipeline writes /opt/clashroyale/data/mydb.duckdb; the API must be
@@ -118,6 +245,9 @@ runcmd:
 
   # --- GHCR login only if you stored a PAT (public packages skip this) ---
   - bash -c 'if [ -n "${ghcr_pat_param}" ]; then aws ssm get-parameter --region ${region} --name "${ghcr_pat_param}" --with-decryption --query Parameter.Value --output text | docker login ghcr.io -u "${ghcr_owner}" --password-stdin; fi'
+
+  # --- write alloy credentials from SSM (alloy comes up with the stack) ---
+  - /usr/local/bin/cr-alloy-env.sh
 
   # --- launch serving stack (api will restart-loop until the db exists) ---
   - mkdir -p /opt/clashroyale/data

@@ -1,4 +1,5 @@
 use actix_web::{middleware, web, App, HttpServer};
+use actix_web_prom::PrometheusMetricsBuilder;
 
 mod db;
 mod error;
@@ -28,8 +29,20 @@ async fn main() -> std::io::Result<()> {
     let pol_ranking_repo = web::Data::new(PolRankingRepo::new(pool.clone()));
     let support_card_repo = web::Data::new(SupportCardRepo::new(pool.clone()));
 
+    // Prometheus metrics. Built once (shared registry) and cloned into each
+    // worker. Exposes GET /metrics with per-route request totals + latency
+    // histograms. Internal only — Caddy never proxies here; Alloy scrapes
+    // api:3000/metrics over the compose network.
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        .build()
+        .expect("failed to build prometheus middleware");
+
     HttpServer::new(move || {
         App::new()
+            // Metrics first so it observes every request (incl. those handled
+            // by later middleware).
+            .wrap(prometheus.clone())
             // gzip/br/zstd negotiated via Accept-Encoding (actix-web default features)
             .wrap(middleware::Compress::default())
             // Mart data changes only on the pipeline cadence — let browsers/CDN cache GETs.
