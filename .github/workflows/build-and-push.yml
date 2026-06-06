@@ -28,6 +28,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # build all images independently; one failure shouldn't cancel the rest
       matrix:
         include:
           - name: api
