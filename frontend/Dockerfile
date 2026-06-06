@@ -7,6 +7,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# Next.js compiles rewrites() into .next/routes-manifest.json at BUILD time, so
+# API_BASE_URL must be set HERE — runtime env can't change the baked rewrite
+# destination. This points the /api/* proxy at the compose service `api`.
+ARG API_BASE_URL=http://api:3000
+ENV API_BASE_URL=$API_BASE_URL
 # NEXT_PUBLIC_API_URL is empty by default -> browser uses same-origin /api/*.
 RUN npm run build
 
