@@ -1,0 +1,9 @@
+# OpenTofu / Terraform — never commit state or secrets
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
