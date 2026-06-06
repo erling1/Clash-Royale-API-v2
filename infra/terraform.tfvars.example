@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+# NOTE: secrets (CR_API_TOKEN, QUACK_TOKEN) are NOT set here — you store those
+# in SSM Parameter Store by hand (see README) so they stay out of tofu state.
+
+aws_region    = "eu-north-1"
+instance_type = "t3.micro"
+
+# --- GHCR images ---
+ghcr_owner     = "erling1"
+api_image      = "ghcr.io/erling1/clash-royale-api-v2/api:latest"
+frontend_image = "ghcr.io/erling1/clash-royale-api-v2/frontend:latest"
+pipeline_image = "ghcr.io/erling1/clash-royale-api-v2/pipeline:latest"
+# If your GHCR packages are PRIVATE, store a read:packages PAT in SSM and set:
+# ghcr_pat_param = "/clashroyale/ghcr_pat"
+
+# --- Secret parameter names (values created via `aws ssm put-parameter`) ---
+cr_token_param    = "/clashroyale/cr_api_token"
+quack_token_param = "/clashroyale/quack_token"
+
+# --- SSH (optional; SSM Session Manager works without any of this) ---
+# ssh_cidr       = "203.0.113.4/32"
+# ssh_public_key = "ssh-ed25519 AAAA... you@host"
+
+# --- Cloudflare (optional; leave zone id empty to skip DNS) ---
+# domain               = "arena-insights.example.com"
+# cloudflare_zone_id   = "your-zone-id"
+# cloudflare_api_token = "your-cloudflare-token"

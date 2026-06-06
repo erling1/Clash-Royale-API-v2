@@ -1,0 +1,129 @@
+#cloud-config
+# Rendered by OpenTofu (templatefile). $${...} and $(...) reach the shell
+# literally; only $${name} sequences are substituted by Tofu.
+
+package_update: true
+packages:
+  - docker
+
+write_files:
+  # ----- serving stack: caddy -> frontend -> api ---------------------------
+  - path: /opt/clashroyale/docker-compose.yml
+    permissions: '0644'
+    content: |
+      services:
+        caddy:
+          image: caddy:2-alpine
+          restart: unless-stopped
+          ports:
+            - "80:80"
+            - "443:443"
+          volumes:
+            - /opt/clashroyale/Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+          depends_on:
+            - frontend
+
+        frontend:
+          image: ${frontend_image}
+          restart: unless-stopped
+          environment:
+            API_BASE_URL: "http://api:3000"
+            NEXT_PUBLIC_API_URL: ""
+            NODE_ENV: "production"
+          depends_on:
+            - api
+
+        api:
+          image: ${api_image}
+          restart: unless-stopped
+          # Shares the DuckDB file on disk with the pipeline container.
+          volumes:
+            - /opt/clashroyale/data:/app/database/data
+
+      volumes:
+        caddy_data:
+        caddy_config:
+
+  # ----- Caddy: TLS + reverse proxy ----------------------------------------
+  - path: /opt/clashroyale/Caddyfile
+    permissions: '0644'
+    content: |
+      ${domain == "" ? ":443" : domain} {
+          tls internal
+          reverse_proxy frontend:3001
+      }
+
+  # ----- the cron job: stop api -> run pipeline image -> start api ----------
+  # The pipeline writes /opt/clashroyale/data/mydb.duckdb; the API must be
+  # stopped while it writes (embedded DuckDB = single writer).
+  - path: /usr/local/bin/cr-pipeline.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      REGION="${region}"
+
+      CR_API_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "${cr_token_param}" --with-decryption --query Parameter.Value --output text)"
+      QUACK_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "${quack_token_param}" --with-decryption --query Parameter.Value --output text)"
+      export CR_API_TOKEN QUACK_TOKEN
+
+      cd /opt/clashroyale
+      docker compose stop api
+      docker pull "${pipeline_image}"
+      docker run --rm \
+        -v /opt/clashroyale/data:/app/database/data \
+        -e CR_API_TOKEN -e QUACK_TOKEN \
+        "${pipeline_image}"
+      docker compose start api
+
+  - path: /etc/systemd/system/cr-pipeline.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=ClashRoyale data pipeline (extract + dbt)
+      After=docker.service
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/cr-pipeline.sh
+
+  - path: /etc/systemd/system/cr-pipeline.timer
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Daily ClashRoyale data pipeline
+      [Timer]
+      OnCalendar=*-*-* 04:00:00
+      Persistent=true
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  # --- 2 GiB swap so the 1 GiB micro doesn't OOM during dbt/extract ---
+  - dd if=/dev/zero of=/swapfile bs=1M count=2048
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - bash -c "echo '/swapfile none swap sw 0 0' >> /etc/fstab"
+
+  # --- docker + compose plugin (AL2023 ships docker engine but not compose) ---
+  - systemctl enable --now docker
+  - mkdir -p /usr/local/lib/docker/cli-plugins
+  - curl -sSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
+  - chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+  # --- GHCR login only if you stored a PAT (public packages skip this) ---
+  - bash -c 'if [ -n "${ghcr_pat_param}" ]; then aws ssm get-parameter --region ${region} --name "${ghcr_pat_param}" --with-decryption --query Parameter.Value --output text | docker login ghcr.io -u "${ghcr_owner}" --password-stdin; fi'
+
+  # --- launch serving stack (api will restart-loop until the db exists) ---
+  - mkdir -p /opt/clashroyale/data
+  - bash -c 'cd /opt/clashroyale && docker compose up -d'
+
+  # --- run the pipeline once to create the db (no-op if the CR token IP
+  #     whitelist isn't set yet — just re-run cr-pipeline.sh after you fix it) ---
+  - bash -c '/usr/local/bin/cr-pipeline.sh || echo "first pipeline run failed (likely CR token IP not whitelisted yet)"'
+
+  # --- enable the daily timer ---
+  - systemctl daemon-reload
+  - systemctl enable --now cr-pipeline.timer
