@@ -1,0 +1,22 @@
+# BuildKit uses <dockerfile>.dockerignore when present, so this overrides the
+# API's restrictive .dockerignore for the pipeline build. Keep extract/ + dbt/.
+.git
+target
+.venv
+frontend
+logs
+marimo
+.claude
+src
+Cargo.toml
+Cargo.lock
+*.duckdb
+*.duckdb.wal
+*.wal
+.env
+.env.*
+.envrc
+dbt/target
+dbt/logs
+dbt/dbt_packages
+dbt/data

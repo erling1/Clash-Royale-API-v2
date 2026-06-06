@@ -41,3 +41,6 @@ __marimo__/
 
 # Claude
 .claude/
+database/data/ 
+logs/ 
+marimo/raw/

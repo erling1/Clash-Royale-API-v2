@@ -1,43 +1,33 @@
-IMAGE      := clashroyale-db
-CONTAINER  := clashroyale-db
-PORT       := 4213
-DATA_DIR   := $(CURDIR)/data
-CONTEXT    := database
-DUCKDB     := $(CURDIR)/database/data/mydb.duckdb
+IMAGE      := clashroyale-api
+CONTAINER  := clashroyale-api
+PORT       := 3000
+DATA_DIR   := $(CURDIR)/database/data
+DUCKDB     := $(DATA_DIR)/mydb.duckdb
 
-.PHONY: build run stop logs clean prune help duck pipeline
+.PHONY: build run stop logs prune duck pipeline help
 
 help:
 	@echo "Targets:"
-	@echo "  build      Build the Docker image ($(IMAGE))"
-	@echo "  run        Build (if needed) and run the container in the background"
-	@echo "  stop       Stop and remove the running container"
-	@echo "  logs       Tail the container's logs"
-	@echo "  clean      Remove this project's container and image"
-	@echo "  prune      clean + 'docker system prune -f' (removes ALL unused Docker resources)"
+	@echo "  build      Build the API Docker image ($(IMAGE))"
+	@echo "  run        Build (if needed) and run the API container in the background"
+	@echo "  stop       Stop and remove the running API container"
+	@echo "  logs       Tail the API container's logs"
+	@echo "  prune      Stop the container and remove the API image"
 	@echo "  duck       Open the DuckDB CLI on $(DUCKDB)"
 	@echo "  pipeline   Run extract + dbt run (the full daily refresh)"
 
-duck:
-	duckdb $(DUCKDB)
-
-pipeline:
-	$(CURDIR)/extract/run_pipeline.sh
-
 build:
-	docker build -t $(IMAGE) $(CONTEXT)
+	docker build -t $(IMAGE) .
 
 run: build
-	@if [ -z "$$QUACK_TOKEN" ]; then echo "QUACK_TOKEN is not set (try 'direnv allow' or 'source .envrc')"; exit 1; fi
 	@mkdir -p $(DATA_DIR)
 	@docker rm -f $(CONTAINER) >/dev/null 2>&1 || true
 	docker run -d \
 		--name $(CONTAINER) \
 		-p 127.0.0.1:$(PORT):$(PORT) \
-		-e QUACK_TOKEN=$$QUACK_TOKEN \
-		-v $(DATA_DIR):/data \
+		-v $(DATA_DIR):/app/database/data \
 		$(IMAGE)
-	@echo "Running on localhost:$(PORT). Logs: make logs"
+	@echo "API running on http://localhost:$(PORT). Logs: make logs"
 
 stop:
 	-docker rm -f $(CONTAINER)
@@ -45,8 +35,11 @@ stop:
 logs:
 	docker logs -f $(CONTAINER)
 
-clean: stop
+prune: stop
 	-docker rmi $(IMAGE)
 
-prune: clean
-	docker system prune -f
+duck:
+	duckdb $(DUCKDB)
+
+pipeline:
+	$(CURDIR)/extract/run_pipeline.sh
