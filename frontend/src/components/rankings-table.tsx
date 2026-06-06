@@ -24,7 +24,7 @@ const columns: ColumnDef<PolRanking, unknown>[] = [
     header: "Player",
     cell: ({ row }) => (
       <Link
-        href={`/players/${row.original.player_tag}` as `/players/${string}`}
+        href={`/players/${encodeURIComponent(row.original.player_tag)}` as `/players/${string}`}
         className="block transition-colors hover:text-success"
       >
         <div className="text-fg">{row.original.player_name}</div>

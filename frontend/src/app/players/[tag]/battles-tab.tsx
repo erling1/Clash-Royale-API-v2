@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { Check, Link2, BarChart3 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Card } from "@/lib/types";
 import { DeckGrid } from "@/components/deck-grid";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { deckHash } from "@/lib/deck-hash";
 import { fmtDate, fmtInt } from "@/lib/format";
 
 export function PlayerBattlesTab({ playerTag }: { playerTag: string }) {
@@ -105,11 +109,50 @@ function BattleDeck({
     return null;
   }
 
+  const cardIds = teamCards.map((c) => c.card_id);
+
   return (
-    <DeckGrid
-      cardIds={teamCards.map((c) => c.card_id)}
-      cardsById={cardsById}
-      size={44}
-    />
+    <div className="flex flex-col items-start gap-2">
+      <DeckGrid cardIds={cardIds} cardsById={cardsById} size={44} />
+      <DeckCopyActions cardIds={cardIds} />
+    </div>
+  );
+}
+
+function DeckCopyActions({ cardIds }: { cardIds: number[] }) {
+  const [copied, setCopied] = useState(false);
+
+  // Official Clash Royale deck deep link — opens the 8 cards in-game.
+  const gameLink = `https://link.clashroyale.com/deck/en?deck=${cardIds.join(";")}`;
+  // Deck-analytics page key, derived the same way the pipeline hashes decks.
+  const hash = deckHash(cardIds);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(gameLink);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable (non-secure context) — silently no-op.
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={copy}>
+        {copied ? (
+          <Check className="h-4 w-4 text-success" />
+        ) : (
+          <Link2 className="h-4 w-4" />
+        )}
+        {copied ? "Copied" : "Copy deck"}
+      </Button>
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`/decks/${hash}` as `/decks/${string}`}>
+          <BarChart3 className="h-4 w-4" />
+          View deck
+        </Link>
+      </Button>
+    </div>
   );
 }

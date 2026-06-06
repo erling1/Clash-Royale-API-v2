@@ -20,7 +20,6 @@ type Href =
   | "/builder"
   | "/players"
   | "/clans"
-  | "/battles"
   | "/rankings"
   | "/saved";
 
@@ -35,7 +34,6 @@ const NAV: {
   { label: "Builder", href: "/builder" },
   { label: "Players", href: "/players" },
   { label: "Clans", href: "/clans" },
-  { label: "Battles", href: "/battles" },
   { label: "Rankings", href: "/rankings" },
   { label: "Saved", href: "/saved", icon: Star },
 ];

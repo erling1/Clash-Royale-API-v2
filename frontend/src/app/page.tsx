@@ -203,7 +203,7 @@ function initials(name: string): string {
 function LeaderCard({ rank, index }: { rank: PolRanking; index: number }) {
   return (
     <Link
-      href={`/players/${rank.player_tag}` as `/players/${string}`}
+      href={`/players/${encodeURIComponent(rank.player_tag)}` as `/players/${string}`}
       className={cn(
         "relative flex flex-col items-center rounded-xl p-5 text-center transition-all hover:-translate-y-0.5",
         index === 0 ? "panel-gold" : "panel hover:panel-gold",

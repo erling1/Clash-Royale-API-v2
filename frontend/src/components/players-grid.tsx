@@ -49,7 +49,7 @@ export function PlayersGrid({ players }: { players: Player[] }) {
           {rows.map((p) => (
             <Link
               key={p.player_tag}
-              href={`/players/${p.player_tag}` as `/players/${string}`}
+              href={`/players/${encodeURIComponent(p.player_tag)}` as `/players/${string}`}
             >
               <Card className="transition-all hover:panel-gold hover:-translate-y-0.5">
                 <CardHeader>

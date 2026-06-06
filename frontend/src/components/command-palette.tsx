@@ -96,7 +96,7 @@ export function CommandPalette({
       .slice(0, PER_GROUP)
       .map<Item>((p) => ({
         key: `player-${p.player_tag}`,
-        href: `/players/${p.player_tag}`,
+        href: `/players/${encodeURIComponent(p.player_tag)}`,
         node: (
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

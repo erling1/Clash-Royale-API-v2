@@ -47,7 +47,7 @@ export default async function PlayerDetailPage({
               type: "player",
               id: player.player_tag,
               label: player.player_name,
-              href: `/players/${player.player_tag}`,
+              href: `/players/${encodeURIComponent(player.player_tag)}`,
             }}
           />
         </div>
@@ -64,10 +64,10 @@ export default async function PlayerDetailPage({
         <Stat label="Streak" value={fmtInt(player.current_win_lose_streak)} />
       </div>
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue="battles">
         <TabsList>
+          <TabsTrigger value="battles">Recent decks</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="battles">Battles</TabsTrigger>
         </TabsList>
         <TabsContent value="profile">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
