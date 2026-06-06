@@ -1,0 +1,18 @@
+# Keep the build context small: the API image only needs Cargo.toml,
+# Cargo.lock and src/. Everything below is irrelevant to the Rust build.
+target
+.git
+.venv
+frontend
+dbt
+database
+extract
+marimo
+logs
+.claude
+*.duckdb
+*.duckdb.wal
+*.wal
+.env
+.env.*
+.envrc
