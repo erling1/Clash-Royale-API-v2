@@ -64,6 +64,11 @@ write_files:
             - /opt/clashroyale/alloy/config.alloy:/etc/alloy/config.alloy:ro
             - alloy_data:/var/lib/alloy/data
             - caddy_logs:/var/log/caddy:ro
+            # batch-job metrics (.prom) written by cr-pipeline.sh, read by the
+            # node_exporter textfile collector.
+            - /opt/clashroyale/metrics:/textfile:ro
+            # pipeline run logs, tailed -> Loki (job="pipeline").
+            - /opt/clashroyale/pipeline-logs:/var/log/pipeline:ro
             # host metrics for prometheus.exporter.unix (read-only)
             - /proc:/host/proc:ro
             - /sys:/host/sys:ro
@@ -122,10 +127,14 @@ write_files:
       }
 
       // ---- host metrics: cpu / mem / swap / disk ----
+      // textfile collector exposes cr_pipeline_* metrics written by cr-pipeline.sh.
       prometheus.exporter.unix "host" {
         rootfs_path = "/rootfs"
         procfs_path = "/host/proc"
         sysfs_path  = "/host/sys"
+        textfile {
+          directory = "/textfile"
+        }
       }
 
       prometheus.scrape "host" {
@@ -162,6 +171,23 @@ write_files:
         }
       }
 
+      // ---- pipeline run logs -> Loki ----
+      local.file_match "pipeline" {
+        path_targets = [{ "__path__" = "/var/log/pipeline/pipeline.log" }]
+      }
+
+      loki.source.file "pipeline" {
+        targets    = local.file_match.pipeline.targets
+        forward_to = [loki.process.pipeline.receiver]
+      }
+
+      loki.process "pipeline" {
+        forward_to = [loki.write.grafanacloud.receiver]
+        stage.static_labels {
+          values = { job = "pipeline", host = "clashroyale" }
+        }
+      }
+
   # ----- alloy credentials: pull grafana_* params from SSM into an env file -
   # Re-runnable: rotate the token in SSM, re-run this, then
   #   docker compose up -d alloy
@@ -189,24 +215,138 @@ write_files:
     permissions: '0755'
     content: |
       #!/usr/bin/env bash
-      set -euo pipefail
+      # NOTE: deliberately NOT `set -e` — we must capture the pipeline's exit
+      # code, write metrics, and restart the API even when the run fails.
+      set -uo pipefail
       REGION="${region}"
+      DATA_DIR=/opt/clashroyale/data
+      DBT_TARGET=/opt/clashroyale/dbt-target
+      METRICS_DIR=/opt/clashroyale/metrics
+      LOG_DIR=/opt/clashroyale/pipeline-logs
+      LOG_FILE="$LOG_DIR/pipeline.log"
+      mkdir -p "$DATA_DIR" "$DBT_TARGET" "$METRICS_DIR" "$LOG_DIR"
 
       CR_API_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "${cr_token_param}" --with-decryption --query Parameter.Value --output text)"
       QUACK_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "${quack_token_param}" --with-decryption --query Parameter.Value --output text)"
       export CR_API_TOKEN QUACK_TOKEN
 
       cd /opt/clashroyale
-      # Always bring the API back up on exit, even if the pipeline fails partway
-      # (otherwise a failed run leaves it stopped after `docker compose stop api`).
-      trap 'docker compose start api' EXIT
+      # Always bring the API back up on exit, even if the run dies partway.
+      trap 'docker compose start api >/dev/null 2>&1 || true' EXIT
 
-      docker compose stop api
-      docker pull "${pipeline_image}"
+      START=$(date +%s)
+      echo "===== cr-pipeline start $(date -u +%FT%TZ) =====" >> "$LOG_FILE"
+
+      docker compose stop api  >> "$LOG_FILE" 2>&1
+      docker pull "${pipeline_image}" >> "$LOG_FILE" 2>&1
+
+      # Run the pipeline. dbt/target is mounted out so we can read run_results.json.
       docker run --rm \
-        -v /opt/clashroyale/data:/app/database/data \
+        -v "$DATA_DIR":/app/database/data \
+        -v "$DBT_TARGET":/app/dbt/target \
         -e CR_API_TOKEN -e QUACK_TOKEN \
-        "${pipeline_image}"
+        "${pipeline_image}" >> "$LOG_FILE" 2>&1
+      EXIT=$?
+
+      END=$(date +%s)
+      DURATION=$(( END - START ))
+      docker compose start api >> "$LOG_FILE" 2>&1 || true
+
+      SUCCESS=0; [ "$EXIT" -eq 0 ] && SUCCESS=1
+      DUCKDB_BYTES=0; [ -f "$DATA_DIR/mydb.duckdb" ] && DUCKDB_BYTES=$(stat -c %s "$DATA_DIR/mydb.duckdb")
+
+      # --- run-level metrics (atomic write so the textfile collector never reads a partial file) ---
+      TMP="$METRICS_DIR/cr_pipeline_run.prom.tmp"
+      {
+        echo "# HELP cr_pipeline_success Last pipeline run succeeded (1) or failed (0)."
+        echo "# TYPE cr_pipeline_success gauge"
+        echo "cr_pipeline_success $SUCCESS"
+        echo "# HELP cr_pipeline_exit_code Exit code of the last pipeline container."
+        echo "# TYPE cr_pipeline_exit_code gauge"
+        echo "cr_pipeline_exit_code $EXIT"
+        echo "# HELP cr_pipeline_duration_seconds Wall-clock duration of the last run."
+        echo "# TYPE cr_pipeline_duration_seconds gauge"
+        echo "cr_pipeline_duration_seconds $DURATION"
+        echo "# HELP cr_pipeline_start_timestamp_seconds Start time of the last run."
+        echo "# TYPE cr_pipeline_start_timestamp_seconds gauge"
+        echo "cr_pipeline_start_timestamp_seconds $START"
+        echo "# HELP cr_pipeline_end_timestamp_seconds End time of the last run."
+        echo "# TYPE cr_pipeline_end_timestamp_seconds gauge"
+        echo "cr_pipeline_end_timestamp_seconds $END"
+        echo "# HELP cr_pipeline_duckdb_bytes Size of mydb.duckdb after the run."
+        echo "# TYPE cr_pipeline_duckdb_bytes gauge"
+        echo "cr_pipeline_duckdb_bytes $DUCKDB_BYTES"
+      } > "$TMP"
+      mv "$TMP" "$METRICS_DIR/cr_pipeline_run.prom"
+
+      # --- last-success marker: only rewritten on success, so it retains the
+      #     last good timestamp after a failure (enables staleness alerts) ---
+      if [ "$SUCCESS" -eq 1 ]; then
+        TMP2="$METRICS_DIR/cr_pipeline_success.prom.tmp"
+        {
+          echo "# HELP cr_pipeline_last_success_timestamp_seconds End time of the last SUCCESSFUL run."
+          echo "# TYPE cr_pipeline_last_success_timestamp_seconds gauge"
+          echo "cr_pipeline_last_success_timestamp_seconds $END"
+        } > "$TMP2"
+        mv "$TMP2" "$METRICS_DIR/cr_pipeline_success.prom"
+      fi
+
+      # --- dbt model metrics from run_results.json (best-effort) ---
+      if [ -f "$DBT_TARGET/run_results.json" ]; then
+        python3 /usr/local/bin/cr-dbt-metrics.py \
+          "$DBT_TARGET/run_results.json" "$METRICS_DIR/cr_pipeline_dbt.prom" || true
+      fi
+
+      echo "[$(date -u +%FT%TZ)] cr-pipeline finished exit=$EXIT duration=$${DURATION}s success=$SUCCESS db_bytes=$DUCKDB_BYTES" >> "$LOG_FILE"
+      exit "$EXIT"
+
+  # ----- parse dbt run_results.json -> textfile metrics --------------------
+  - path: /usr/local/bin/cr-dbt-metrics.py
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env python3
+      """Read dbt run_results.json (arg1), write prometheus textfile metrics (arg2)."""
+      import json, os, sys
+
+      src, dst = sys.argv[1], sys.argv[2]
+      try:
+          data = json.load(open(src))
+      except Exception:
+          sys.exit(0)
+
+      results = data.get("results", [])
+      errored = ("error", "fail", "runtime error")
+      total = len(results)
+      errors = sum(1 for r in results if r.get("status") in errored)
+      skipped = sum(1 for r in results if r.get("status") == "skipped")
+      elapsed = data.get("elapsed_time", 0)
+
+      lines = [
+          "# HELP cr_pipeline_dbt_models_total dbt nodes in the last run.",
+          "# TYPE cr_pipeline_dbt_models_total gauge",
+          "cr_pipeline_dbt_models_total %d" % total,
+          "# HELP cr_pipeline_dbt_models_error dbt nodes that errored/failed.",
+          "# TYPE cr_pipeline_dbt_models_error gauge",
+          "cr_pipeline_dbt_models_error %d" % errors,
+          "# HELP cr_pipeline_dbt_models_skipped dbt nodes skipped.",
+          "# TYPE cr_pipeline_dbt_models_skipped gauge",
+          "cr_pipeline_dbt_models_skipped %d" % skipped,
+          "# HELP cr_pipeline_dbt_elapsed_seconds Total dbt run time.",
+          "# TYPE cr_pipeline_dbt_elapsed_seconds gauge",
+          "cr_pipeline_dbt_elapsed_seconds %f" % float(elapsed),
+          "# HELP cr_pipeline_dbt_model_seconds Per-node dbt build time.",
+          "# TYPE cr_pipeline_dbt_model_seconds gauge",
+      ]
+      for r in results:
+          uid = r.get("unique_id", "")
+          if not uid.startswith("model."):
+              continue
+          name = uid.split(".")[-1].replace("\\", "\\\\").replace('"', '\\"')
+          lines.append('cr_pipeline_dbt_model_seconds{model="%s"} %f' % (name, float(r.get("execution_time", 0))))
+
+      tmp = dst + ".tmp"
+      open(tmp, "w").write("\n".join(lines) + "\n")
+      os.replace(tmp, dst)
 
   - path: /etc/systemd/system/cr-pipeline.service
     permissions: '0644'
@@ -250,7 +390,7 @@ runcmd:
   - /usr/local/bin/cr-alloy-env.sh
 
   # --- launch serving stack (api will restart-loop until the db exists) ---
-  - mkdir -p /opt/clashroyale/data
+  - mkdir -p /opt/clashroyale/data /opt/clashroyale/metrics /opt/clashroyale/pipeline-logs /opt/clashroyale/dbt-target
   - bash -c 'cd /opt/clashroyale && docker compose up -d'
 
   # --- run the pipeline once to create the db (no-op if the CR token IP
