@@ -55,10 +55,14 @@ export function DeckMatchups({
     const ranked = matchups.filter(
       (m) => m.win_rate !== null && m.matchup_count >= minBattles,
     );
-    const best = [...ranked]
+    // Disjoint by construction: >0.5 and <0.5 can't both be true, so the same
+    // opponent deck can never appear in both tables. Exactly 50% goes to neither.
+    const best = ranked
+      .filter((m) => m.win_rate! > 0.5)
       .sort((a, b) => b.win_rate! - a.win_rate! || b.matchup_count - a.matchup_count)
       .slice(0, TOP_N);
-    const worst = [...ranked]
+    const worst = ranked
+      .filter((m) => m.win_rate! < 0.5)
       .sort((a, b) => a.win_rate! - b.win_rate! || b.matchup_count - a.matchup_count)
       .slice(0, TOP_N);
     return { best, worst, qualifying: ranked.length };
@@ -107,6 +111,7 @@ export function DeckMatchups({
             title="Best matchups"
             subtitle="Decks this deck beats most often"
             rows={best}
+            emptyMessage={`No opponent deck lost to this one at ${minBattles}+ games.`}
             cardsById={cardsById}
             labelToCardIds={labelToCardIds}
           />
@@ -114,6 +119,7 @@ export function DeckMatchups({
             title="Worst matchups"
             subtitle="Its toughest counters — decks that beat it"
             rows={worst}
+            emptyMessage={`No opponent deck beat this one at ${minBattles}+ games.`}
             cardsById={cardsById}
             labelToCardIds={labelToCardIds}
           />
@@ -127,12 +133,14 @@ function MatchupTable({
   title,
   subtitle,
   rows,
+  emptyMessage,
   cardsById,
   labelToCardIds,
 }: {
   title: string;
   subtitle?: string;
   rows: DeckMatchup[];
+  emptyMessage: string;
   cardsById: Map<number, CardModel>;
   labelToCardIds: (label: string | null) => number[];
 }) {
@@ -152,7 +160,17 @@ function MatchupTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((m) => (
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className="py-8 text-center text-sm text-fg-muted"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((m) => (
               <TableRow key={m.opponent_deck_hash}>
                 <TableCell className="py-3">
                   <Link
@@ -185,7 +203,8 @@ function MatchupTable({
                   <Badge variant={winRateVariant(m.win_rate)}>{fmtPct(m.win_rate)}</Badge>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </CardContent>

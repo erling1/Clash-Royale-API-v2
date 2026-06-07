@@ -1,6 +1,13 @@
-import { Crown, Twitter, Youtube, MessageCircle } from "lucide-react";
+"use client";
+
+import * as React from "react";
+import { Crown, Github } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 export function SiteFooter() {
+  const [aboutOpen, setAboutOpen] = React.useState(false);
+  const [contactOpen, setContactOpen] = React.useState(false);
+
   return (
     <footer className="mt-16 border-t border-border bg-bg-panel">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-10 md:grid-cols-12">
@@ -39,19 +46,32 @@ export function SiteFooter() {
           <h4 className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Resources</h4>
           <ul className="mt-3 space-y-2 text-sm text-fg-muted">
             <li>
-              <a href="#" className="transition-colors hover:text-fg">
+              <a
+                href="https://developer.clashroyale.com/#/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="transition-colors hover:text-fg"
+              >
                 API Docs
               </a>
             </li>
             <li>
-              <a href="#" className="transition-colors hover:text-fg">
+              <button
+                type="button"
+                onClick={() => setAboutOpen(true)}
+                className="transition-colors hover:text-fg"
+              >
                 About
-              </a>
+              </button>
             </li>
             <li>
-              <a href="#" className="transition-colors hover:text-fg">
+              <button
+                type="button"
+                onClick={() => setContactOpen(true)}
+                className="transition-colors hover:text-fg"
+              >
                 Contact
-              </a>
+              </button>
             </li>
           </ul>
         </div>
@@ -59,16 +79,16 @@ export function SiteFooter() {
         <div className="md:col-span-3">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Follow us</h4>
           <div className="mt-3 flex items-center gap-2">
-            {[Twitter, MessageCircle, Youtube].map((Icon, i) => (
-              <a
-                key={i}
-                href="#"
-                aria-label="social link"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-crystal/10 text-crystal transition-colors hover:bg-crystal/20"
-              >
-                <Icon className="h-4 w-4" />
-              </a>
-            ))}
+            <a
+              href="https://github.com/erling1/Clash-Royale-API-v2"
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label="View source on GitHub"
+              className="flex h-9 items-center gap-2 rounded-full bg-crystal/10 px-3.5 text-sm text-crystal transition-colors hover:bg-crystal/20"
+            >
+              <Github className="h-4 w-4" />
+              View on GitHub
+            </a>
           </div>
           <p className="mt-6 text-xs text-fg-dim">
             © 2024 Arena Insights
@@ -77,6 +97,22 @@ export function SiteFooter() {
           </p>
         </div>
       </div>
+
+      <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
+        <DialogContent>
+          <DialogTitle>About</DialogTitle>
+          <p className="mt-4 text-sm leading-relaxed text-fg-muted">
+            I play Clash Royale, and this is my hobby project.
+          </p>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+        <DialogContent>
+          {/* Intentionally empty for now — contact details TBD. */}
+          <DialogTitle className="sr-only">Contact</DialogTitle>
+        </DialogContent>
+      </Dialog>
     </footer>
   );
 }

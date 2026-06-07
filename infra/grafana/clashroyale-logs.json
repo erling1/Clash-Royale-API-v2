@@ -1,0 +1,78 @@
+{
+  "__inputs": [
+    { "name": "DS_LOKI", "label": "Loki", "description": "Your grafanacloud-…-logs datasource", "type": "datasource", "pluginId": "loki", "pluginName": "Loki" }
+  ],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" },
+    { "type": "panel", "id": "logs", "name": "Logs", "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "links": [
+    { "title": "ClashRoyale", "type": "dashboards", "tags": ["clashroyale"], "asDropdown": true, "includeVars": false, "keepTime": true, "targetBlank": false, "icon": "external link" }
+  ],
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["clashroyale", "logs", "caddy"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "30s",
+  "title": "ClashRoyale — Caddy Logs",
+  "uid": "clashroyale-logs",
+  "panels": [
+    {
+      "type": "stat", "title": "Total requests logged (range)", "id": 1,
+      "description": "Every request through Caddy — frontend assets + API. Counts log lines over the selected range.",
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "${DS_LOKI}" }, "expr": "sum(count_over_time({job=\"caddy\"}[$__range]))", "queryType": "instant" } ]
+    },
+    {
+      "type": "stat", "title": "4xx + 5xx responses (range)", "id": 2,
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "${DS_LOKI}" }, "expr": "sum(count_over_time({job=\"caddy\"} | json | status >= 400 [$__range]))", "queryType": "instant" } ]
+    },
+    {
+      "type": "timeseries", "title": "Requests over time (count)", "id": 3,
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "custom": { "drawStyle": "bars", "fillOpacity": 70, "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "${DS_LOKI}" }, "expr": "sum(count_over_time({job=\"caddy\"}[$__interval]))", "legendFormat": "requests" } ]
+    },
+    {
+      "type": "table", "title": "Top paths (range)", "id": 4,
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
+      "fieldConfig": { "defaults": { "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "hits", "desc": true } ] },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "${DS_LOKI}" }, "expr": "topk(20, sum by (request_uri) (count_over_time({job=\"caddy\"} | json [$__range])))", "queryType": "instant", "format": "table" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "Value": "hits", "request_uri": "path" } } } ]
+    },
+    {
+      "type": "table", "title": "Status code distribution (range)", "id": 5,
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
+      "fieldConfig": { "defaults": { "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "count", "desc": true } ] },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "${DS_LOKI}" }, "expr": "sum by (status) (count_over_time({job=\"caddy\"} | json [$__range]))", "queryType": "instant", "format": "table" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "Value": "count" } } } ]
+    },
+    {
+      "type": "logs", "title": "Live request stream", "id": 6,
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 14 },
+      "options": { "showTime": true, "wrapLogMessage": false, "dedupStrategy": "none", "enableLogDetails": true, "sortOrder": "Descending" },
+      "targets": [ { "refId": "A", "datasource": { "type": "loki", "uid": "${DS_LOKI}" }, "expr": "{job=\"caddy\"} | json | line_format \"{{.request_method}} {{.request_uri}} -> {{.status}} ({{.duration}}s) {{.request_host}}\"" } ]
+    }
+  ]
+}
