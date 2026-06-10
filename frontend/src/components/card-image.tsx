@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +46,9 @@ export function CardImage({
   className,
 }: CardImageProps) {
   const height = Math.round((size * CARD_H) / CARD_W);
+  // The optimizer endpoint (/_next/image) can transiently 500 under cold-cache
+  // bursts; on error we retry with the raw CDN URL, bypassing the optimizer.
+  const [optimizerFailed, setOptimizerFailed] = useState(false);
 
   if (!iconUrl) {
     const ring = rarity
@@ -73,6 +79,8 @@ export function CardImage({
       width={CARD_W}
       height={CARD_H}
       sizes={`${size}px`}
+      unoptimized={optimizerFailed}
+      onError={() => setOptimizerFailed(true)}
       className={cn("block h-auto shrink-0", rounded && "rounded-md", className)}
       style={{ width: size }}
     />

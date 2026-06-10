@@ -34,6 +34,11 @@ write_files:
             API_BASE_URL: "http://api:3000"
             NEXT_PUBLIC_API_URL: ""
             NODE_ENV: "production"
+          volumes:
+            # Next.js image-optimizer cache. Persisting it across deploys
+            # avoids the cold-cache burst of Supercell CDN fetches that
+            # intermittently 500s individual card images.
+            - frontend_image_cache:/app/.next/cache/images
           depends_on:
             - api
 
@@ -79,6 +84,7 @@ write_files:
         caddy_config:
         caddy_logs:
         alloy_data:
+        frontend_image_cache:
 
   # ----- Caddy: TLS + reverse proxy ----------------------------------------
   - path: /opt/clashroyale/Caddyfile

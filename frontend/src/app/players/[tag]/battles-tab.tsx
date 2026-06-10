@@ -84,7 +84,7 @@ export function PlayerBattlesTab({ playerTag }: { playerTag: string }) {
         return (
           <div
             key={`${b.queried_player_tag}-${b.battle_time}`}
-            className="panel flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            className="panel flex flex-col gap-3 px-4 py-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center"
           >
             <div className="flex items-center gap-3">
               <Badge variant={draw ? "muted" : won ? "success" : "danger"}>
@@ -96,14 +96,16 @@ export function PlayerBattlesTab({ playerTag }: { playerTag: string }) {
               <span className="text-xs text-fg-muted capitalize">{b.battle_type}</span>
             </div>
             {cardIds && cardIds.length > 0 ? (
-              <div className="flex flex-col items-start gap-2">
+              <div className="flex flex-col items-start gap-2 sm:items-center sm:justify-self-center">
                 <DeckGrid cardIds={cardIds} cardsById={cardsById} size={44} />
                 <DeckActions deckHash={deckHash(cardIds)} cardIds={cardIds} />
               </div>
             ) : deckCardsLoading ? (
-              <Skeleton className="h-[104px] w-[200px]" />
+              <Skeleton className="h-[104px] w-[200px] sm:justify-self-center" />
             ) : null}
-            <div className="text-xs text-fg-dim">{fmtDate(b.battle_time)}</div>
+            <div className="text-xs text-fg-dim sm:col-start-3 sm:justify-self-end">
+              {fmtDate(b.battle_time)}
+            </div>
           </div>
         );
       })}
