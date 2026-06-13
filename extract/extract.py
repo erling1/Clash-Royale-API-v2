@@ -13,7 +13,7 @@ Run manually:
 
 Environment:
     CR_API_TOKEN    required - Supercell developer token
-    POL_LIMIT       optional - top N players, default = 100
+    POL_LIMIT       optional - top N players, default = 1000
 
 Cron example (every day at 03:00):
     0 3 * * * cd /Users/erlnup/Documents/ClashRoyale && \
@@ -43,7 +43,7 @@ TOKEN = os.getenv("CR_API_TOKEN")
 BASE_URL = "https://api.clashroyale.com/v1"
 # PoL rankings publish only for completed seasons → always last month.
 SEASON_ID = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
-LIMIT = int(os.getenv("POL_LIMIT", "100"))
+LIMIT = int(os.getenv("POL_LIMIT", "1000"))
 TODAY = date.today().strftime("%Y-%m-%d")
 
 # extract/extract.py -> project root
