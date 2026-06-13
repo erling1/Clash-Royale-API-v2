@@ -25,7 +25,10 @@ resource "aws_instance" "app" {
     encrypted   = true
   }
 
-  user_data = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
+  # gzip-compressed so the rendered cloud-init stays under EC2's 16 KiB
+  # user_data limit. cloud-init auto-detects the gzip magic bytes and
+  # decompresses before running.
+  user_data_base64 = base64gzip(templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
     region            = var.aws_region
     ghcr_owner        = var.ghcr_owner
     ghcr_pat_param    = var.ghcr_pat_param
@@ -35,14 +38,15 @@ resource "aws_instance" "app" {
     cr_token_param    = var.cr_token_param
     quack_token_param = var.quack_token_param
     domain            = var.domain
-  })
+    cr_pipeline_sh    = file("${path.module}/scripts/cr-pipeline.sh")
+  }))
 
   # Don't let a routine `tofu apply` destroy the running box (and its DuckDB)
   # just because cloud-init changed. To intentionally roll out cloud-init
   # changes, replace the instance explicitly:
   #   tofu apply -replace=aws_instance.app
   lifecycle {
-    ignore_changes = [user_data]
+    ignore_changes = [user_data_base64]
   }
 
   tags = { Name = "clashroyale-app" }

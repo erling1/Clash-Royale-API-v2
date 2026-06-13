@@ -1,6 +1,6 @@
 with source as (
     {{ clean(
-        source    = "read_parquet('data/raw/pol_rankings/**/*.parquet', hive_partitioning = true)",
+        source    = "read_parquet('s3://clashroyale-data-erling/data/raw/pol_rankings/**/*.parquet', hive_partitioning = true)",
         pks       = ['seasonId', 'tag'],
         order_col = 'dt'
     ) }}

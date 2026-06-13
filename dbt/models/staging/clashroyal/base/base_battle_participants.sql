@@ -1,6 +1,6 @@
 with source as (
     {{ clean(
-        source    = "read_parquet('data/raw/battle_participants/**/*.parquet', hive_partitioning = true)",
+        source    = "read_parquet('s3://clashroyale-data-erling/data/raw/battle_participants/**/*.parquet', hive_partitioning = true)",
         pks       = ['queried_player_tag', 'battleTime', 'side', 'slot'],
         order_col = 'dt'
     ) }}

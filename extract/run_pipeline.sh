@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# Daily pipeline: extract parquets from Clash Royale API, then refresh dbt models.
+# Daily pipeline, split into stages so the orchestrator can keep the API up
+# during extract (which only writes to S3) and stop it only for the dbt build
+# (embedded DuckDB is single-writer, so the API must release the file).
+#
+#   run_pipeline.sh extract   # CR API -> parquet in S3        (API may stay up)
+#   run_pipeline.sh dbt       # build mydb.duckdb from S3      (API must be down)
+#   run_pipeline.sh all       # extract then dbt, in order     (default; local dev)
+#
 # Safe for cron: locates project root from this script's path, doesn't assume CWD.
 
 set -euo pipefail
+
+STAGE="${1:-all}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -27,15 +36,28 @@ fi
 
 ts() { date -u +%FT%TZ; }
 
-echo "[$(ts)] pipeline start"
+run_extract() {
+    echo "[$(ts)] extract begin"
+    uv run python extract/extract.py
+    echo "[$(ts)] extract done"
+}
 
-echo "[$(ts)] extract begin"
-uv run python extract/extract.py
-echo "[$(ts)] extract done"
+run_dbt() {
+    echo "[$(ts)] dbt run begin"
+    ( cd dbt && uv run dbt run )
+    echo "[$(ts)] dbt run done"
+}
 
-echo "[$(ts)] dbt run begin"
-cd dbt
-uv run dbt run
-echo "[$(ts)] dbt run done"
+echo "[$(ts)] pipeline start (stage=$STAGE)"
 
-echo "[$(ts)] pipeline complete"
+case "$STAGE" in
+    extract) run_extract ;;
+    dbt)     run_dbt ;;
+    all)     run_extract; run_dbt ;;
+    *)
+        echo "[$(ts)] unknown stage '$STAGE' (use: extract | dbt | all)" >&2
+        exit 2
+        ;;
+esac
+
+echo "[$(ts)] pipeline complete (stage=$STAGE)"

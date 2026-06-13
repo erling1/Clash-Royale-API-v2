@@ -1,8 +1,8 @@
 """
 Extract Clash Royale Path-of-Legend data and write to dbt's hive-partitioned raw layer.
 
-Output layout (relative to project root):
-    dbt/data/raw/<table>/dt=<YYYY-MM-DD>/<file>.parquet
+Output layout (S3 — dbt reads these straight from S3 via httpfs):
+    s3://clashroyale-data-erling/data/raw/<table>/dt=<YYYY-MM-DD>/<file>.parquet
 
 Tables produced (one parquet per run):
     pol_rankings, battles, battle_participants,
@@ -21,6 +21,7 @@ Cron example (every day at 03:00):
         >> logs/extract.log 2>&1
 """
 
+import io
 import json
 import logging
 import os
@@ -29,8 +30,8 @@ import time
 import urllib.parse
 from contextlib import contextmanager
 from datetime import date, timedelta
-from pathlib import Path
 
+import boto3
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -46,9 +47,12 @@ SEASON_ID = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 LIMIT = int(os.getenv("POL_LIMIT", "1000"))
 TODAY = date.today().strftime("%Y-%m-%d")
 
-# extract/extract.py -> project root
-ROOT = Path(__file__).resolve().parent.parent
-RAW_ROOT = ROOT / "dbt" / "data" / "raw"
+# S3 raw zone. Keys mirror the path dbt's base models read via read_parquet
+# ("data/raw/<table>/dt=.../..."). Creds come from the AWS credential chain:
+# the EC2 instance role on the box, or your local profile (AWS_PROFILE=erling).
+S3_BUCKET = "clashroyale-data-erling"
+S3_REGION = "eu-north-1"
+s3 = boto3.client("s3", region_name=S3_REGION)
 
 
 # ---- logging ---------------------------------------------------------------
@@ -124,22 +128,22 @@ def get(session: requests.Session, endpoint: str, params=None):
 
 
 # ---- io --------------------------------------------------------------------
-def write_parquet(df: pd.DataFrame, table_name: str, filename: str | None = None) -> Path:
-    out_dir = RAW_ROOT / table_name / f"dt={TODAY}"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / (filename or f"{table_name}.parquet")
-    pq.write_table(pa.Table.from_pandas(df), out_path)
+def write_parquet(df: pd.DataFrame, table_name: str, filename: str | None = None) -> str:
+    key = f"data/raw/{table_name}/dt={TODAY}/{filename or f'{table_name}.parquet'}"
+    buf = io.BytesIO()
+    pq.write_table(pa.Table.from_pandas(df), buf)
+    s3.put_object(Bucket=S3_BUCKET, Key=key, Body=buf.getvalue())
     logger.info(
         "wrote_parquet",
         extra={
             "extra_fields": {
                 "table": table_name,
                 "rows": len(df),
-                "path": str(out_path.relative_to(ROOT)),
+                "path": f"s3://{S3_BUCKET}/{key}",
             }
         },
     )
-    return out_path
+    return key
 
 
 # ---- fetchers --------------------------------------------------------------
@@ -319,7 +323,7 @@ def main():
                 "season": SEASON_ID,
                 "limit": LIMIT,
                 "dt": TODAY,
-                "raw_root": str(RAW_ROOT.relative_to(ROOT)),
+                "s3_bucket": S3_BUCKET,
             }
         },
     )

@@ -17,6 +17,7 @@ on:
       - "pyproject.toml"
       - "uv.lock"
       - "frontend/**"
+      - "infra/scripts/**"
       - ".github/workflows/build-and-push.yml"
   workflow_dispatch:
 
@@ -75,12 +76,14 @@ jobs:
       contents: read
       id-token: write # required to request the OIDC token
     steps:
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: eu-north-1
 
-      - name: Pull new images + recreate api/frontend on the box
+      - name: Update host pipeline script + recreate api/frontend on the box
         run: |
           set -euo pipefail
           INSTANCE_ID=$(aws ec2 describe-instances \
@@ -88,14 +91,24 @@ jobs:
             --query 'Reservations[].Instances[].InstanceId' --output text)
           echo "Deploying ${GITHUB_SHA::7} to $INSTANCE_ID"
 
-          # pipeline image is pulled by cr-pipeline.sh at 04:00; here we only
-          # refresh the serving containers. `up -d` no-ops if the digest is
-          # unchanged. prune frees disk on the 1 GiB box.
+          # Ship the latest host orchestrator (cr-pipeline.sh) and refresh the
+          # serving containers. This job has `needs: build`, so the new pipeline
+          # image is already in GHCR before the new script lands — that ordering
+          # is what closes the deploy-order gap. The pipeline image itself is
+          # pulled by cr-pipeline.sh at run time. base64 + jq dodge quote
+          # escaping when embedding the script in the SSM command.
+          SCRIPT_B64=$(base64 -w0 infra/scripts/cr-pipeline.sh)
+          jq -n --arg s "$SCRIPT_B64" '{commands: [
+            ("echo " + $s + " | base64 -d | tee /usr/local/bin/cr-pipeline.sh >/dev/null"),
+            "chmod +x /usr/local/bin/cr-pipeline.sh",
+            "cd /opt/clashroyale && docker compose pull api frontend && docker compose up -d api frontend && docker image prune -f"
+          ]}' > ssm-params.json
+
           CMD=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
             --comment "CI deploy ${GITHUB_SHA::7}" \
-            --parameters 'commands=["cd /opt/clashroyale","docker compose pull api frontend","docker compose up -d api frontend","docker image prune -f"]' \
+            --parameters file://ssm-params.json \
             --query Command.CommandId --output text)
           echo "CommandId: $CMD"
 

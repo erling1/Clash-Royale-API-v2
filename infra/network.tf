@@ -102,6 +102,24 @@ data "aws_iam_policy_document" "instance" {
       values   = ["ssm.${var.aws_region}.amazonaws.com"]
     }
   }
+
+  # Read/write objects in the data bucket (and only that bucket). ListBucket is
+  # a bucket-level action (ARN without /*); the object actions need the /* ARN.
+  statement {
+    sid       = "ListDataBucket"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.data.arn]
+  }
+
+  statement {
+    sid = "ReadWriteDataBucketObjects"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = ["${aws_s3_bucket.data.arn}/*"]
+  }
 }
 
 resource "aws_iam_role_policy" "instance" {

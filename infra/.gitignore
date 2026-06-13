@@ -7,3 +7,6 @@
 .terraform.lock.hcl
 crash.log
 crash.*.log
+
+# Saved plan files (point-in-time artifacts from `tofu plan -out=...`)
+*.plan

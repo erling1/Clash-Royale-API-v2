@@ -214,97 +214,14 @@ write_files:
       GRAFANA_TOKEN=$(get /clashroyale/grafana_token)
       EOF
 
-  # ----- the cron job: stop api -> run pipeline image -> start api ----------
-  # The pipeline writes /opt/clashroyale/data/mydb.duckdb; the API must be
-  # stopped while it writes (embedded DuckDB = single writer).
+  # ----- the cron job: extract (API up) -> stop api -> dbt -> start api -----
+  # extract only writes parquet to S3, so the API can keep serving during it.
+  # dbt builds /opt/clashroyale/data/mydb.duckdb (embedded DuckDB = single
+  # writer), so the API must release the file for that stage only.
   - path: /usr/local/bin/cr-pipeline.sh
     permissions: '0755'
     content: |
-      #!/usr/bin/env bash
-      # NOTE: deliberately NOT `set -e` — we must capture the pipeline's exit
-      # code, write metrics, and restart the API even when the run fails.
-      set -uo pipefail
-      REGION="${region}"
-      DATA_DIR=/opt/clashroyale/data
-      DBT_TARGET=/opt/clashroyale/dbt-target
-      METRICS_DIR=/opt/clashroyale/metrics
-      LOG_DIR=/opt/clashroyale/pipeline-logs
-      LOG_FILE="$LOG_DIR/pipeline.log"
-      mkdir -p "$DATA_DIR" "$DBT_TARGET" "$METRICS_DIR" "$LOG_DIR"
-
-      CR_API_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "${cr_token_param}" --with-decryption --query Parameter.Value --output text)"
-      QUACK_TOKEN="$(aws ssm get-parameter --region "$REGION" --name "${quack_token_param}" --with-decryption --query Parameter.Value --output text)"
-      export CR_API_TOKEN QUACK_TOKEN
-
-      cd /opt/clashroyale
-      # Always bring the API back up on exit, even if the run dies partway.
-      trap 'docker compose start api >/dev/null 2>&1 || true' EXIT
-
-      START=$(date +%s)
-      echo "===== cr-pipeline start $(date -u +%FT%TZ) =====" >> "$LOG_FILE"
-
-      docker compose stop api  >> "$LOG_FILE" 2>&1
-      docker pull "${pipeline_image}" >> "$LOG_FILE" 2>&1
-
-      # Run the pipeline. dbt/target is mounted out so we can read run_results.json.
-      docker run --rm \
-        -v "$DATA_DIR":/app/database/data \
-        -v "$DBT_TARGET":/app/dbt/target \
-        -e CR_API_TOKEN -e QUACK_TOKEN \
-        "${pipeline_image}" >> "$LOG_FILE" 2>&1
-      EXIT=$?
-
-      END=$(date +%s)
-      DURATION=$(( END - START ))
-      docker compose start api >> "$LOG_FILE" 2>&1 || true
-
-      SUCCESS=0; [ "$EXIT" -eq 0 ] && SUCCESS=1
-      DUCKDB_BYTES=0; [ -f "$DATA_DIR/mydb.duckdb" ] && DUCKDB_BYTES=$(stat -c %s "$DATA_DIR/mydb.duckdb")
-
-      # --- run-level metrics (atomic write so the textfile collector never reads a partial file) ---
-      TMP="$METRICS_DIR/cr_pipeline_run.prom.tmp"
-      {
-        echo "# HELP cr_pipeline_success Last pipeline run succeeded (1) or failed (0)."
-        echo "# TYPE cr_pipeline_success gauge"
-        echo "cr_pipeline_success $SUCCESS"
-        echo "# HELP cr_pipeline_exit_code Exit code of the last pipeline container."
-        echo "# TYPE cr_pipeline_exit_code gauge"
-        echo "cr_pipeline_exit_code $EXIT"
-        echo "# HELP cr_pipeline_duration_seconds Wall-clock duration of the last run."
-        echo "# TYPE cr_pipeline_duration_seconds gauge"
-        echo "cr_pipeline_duration_seconds $DURATION"
-        echo "# HELP cr_pipeline_start_timestamp_seconds Start time of the last run."
-        echo "# TYPE cr_pipeline_start_timestamp_seconds gauge"
-        echo "cr_pipeline_start_timestamp_seconds $START"
-        echo "# HELP cr_pipeline_end_timestamp_seconds End time of the last run."
-        echo "# TYPE cr_pipeline_end_timestamp_seconds gauge"
-        echo "cr_pipeline_end_timestamp_seconds $END"
-        echo "# HELP cr_pipeline_duckdb_bytes Size of mydb.duckdb after the run."
-        echo "# TYPE cr_pipeline_duckdb_bytes gauge"
-        echo "cr_pipeline_duckdb_bytes $DUCKDB_BYTES"
-      } > "$TMP"
-      mv "$TMP" "$METRICS_DIR/cr_pipeline_run.prom"
-
-      # --- last-success marker: only rewritten on success, so it retains the
-      #     last good timestamp after a failure (enables staleness alerts) ---
-      if [ "$SUCCESS" -eq 1 ]; then
-        TMP2="$METRICS_DIR/cr_pipeline_success.prom.tmp"
-        {
-          echo "# HELP cr_pipeline_last_success_timestamp_seconds End time of the last SUCCESSFUL run."
-          echo "# TYPE cr_pipeline_last_success_timestamp_seconds gauge"
-          echo "cr_pipeline_last_success_timestamp_seconds $END"
-        } > "$TMP2"
-        mv "$TMP2" "$METRICS_DIR/cr_pipeline_success.prom"
-      fi
-
-      # --- dbt model metrics from run_results.json (best-effort) ---
-      if [ -f "$DBT_TARGET/run_results.json" ]; then
-        python3 /usr/local/bin/cr-dbt-metrics.py \
-          "$DBT_TARGET/run_results.json" "$METRICS_DIR/cr_pipeline_dbt.prom" || true
-      fi
-
-      echo "[$(date -u +%FT%TZ)] cr-pipeline finished exit=$EXIT duration=$${DURATION}s success=$SUCCESS db_bytes=$DUCKDB_BYTES" >> "$LOG_FILE"
-      exit "$EXIT"
+      ${indent(6, cr_pipeline_sh)}
 
   # ----- parse dbt run_results.json -> textfile metrics --------------------
   - path: /usr/local/bin/cr-dbt-metrics.py
